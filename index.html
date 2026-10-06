@@ -3,25 +3,187 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Games</title>
+<title>Websites & Games</title>
 <style>
-:root{--bg:#eef2f0;--ink:#17302b;--muted:#5b726c;--card:#fff;--line:#cddad5;--accent:#0f766e}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1b18;--ink:#e6f0ed;--muted:#8fa8a1;--card:#162622;--line:#2a403a;--accent:#2dd4bf}}
+/* Dunkles/Schwarzes Farbschema */
+:root {
+  --bg: #0a0c0b;
+  --ink: #f0f4f3;
+  --muted: #889993;
+  --card: #141a18;
+  --line: #222e2a;
+  --accent: #2dd4bf;
+  --btn-active: #2563eb;
+  --btn-danger: #dc2626;
+}
+
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;line-height:1.5}
-main{max-width:680px;margin:0 auto;padding:48px 20px 64px}
+main{max-width:680px;margin:0 auto;padding:32px 20px 64px}
+
+/* Keyframe-Animationen */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Info-Modal / Overlay Styling */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  opacity: 1;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.modal-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.modal-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
+  animation: fadeInUp 0.3s ease forwards;
+}
+.modal-card h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.6rem;
+  margin: 0 0 12px;
+  color: var(--accent);
+}
+.modal-card p {
+  color: var(--ink);
+  font-size: 0.95rem;
+  margin: 0 0 24px;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.modal-btn {
+  border: none;
+  padding: 10px 20px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.modal-btn.primary {
+  background: var(--btn-active);
+  color: #ffffff;
+}
+.modal-btn.secondary {
+  background: var(--line);
+  color: var(--ink);
+}
+.modal-btn:hover {
+  transform: scale(1.03);
+  filter: brightness(1.1);
+}
+.modal-btn:active {
+  transform: scale(0.97);
+}
+
+/* Kompakter & Zentrierter Tab-Umschalter */
+.tab-container {
+  display: flex;
+  max-width: 320px;
+  margin: 0 auto 24px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  padding: 3px;
+  border-radius: 10px;
+  gap: 4px;
+}
+.tab-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+.tab-btn:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+.tab-btn:active {
+  transform: scale(0.96);
+}
+.tab-btn.active {
+  background: var(--btn-active);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4);
+}
+
 h1{font-family:Georgia,"Times New Roman",serif;font-size:2.4rem;margin:0 0 6px}
 p.sub{margin:0 0 32px;color:var(--muted)}
 ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
-li{display:flex;align-items:stretch;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-li:hover{border-color:var(--accent)}
+
+/* Animation & Hover für Listen-Einträge */
+li {
+  display: flex;
+  align-items: stretch;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  opacity: 0;
+  animation: fadeInUp 0.4s ease forwards;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+li:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
 a.link{flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding:12px 14px;color:inherit;text-decoration:none}
 a.link:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+
+/* Bild-Zoom bei Hover */
 .ico{flex:none;width:64px;height:64px;border-radius:10px;background:var(--accent);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:1.5rem;overflow:hidden}
-.ico img{width:100%;height:100%;object-fit:cover;display:block}
+.ico img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s ease}
+li:hover .ico img {
+  transform: scale(1.08);
+}
+
 .txt{min-width:0}
 .name{font-weight:700;display:block}
 .dom{color:var(--muted);font-size:.9rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
 @media (min-width:1100px){aside.stats{position:fixed;top:48px;right:24px;width:260px;max-width:none;margin:0;padding:0}}
 .stats-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
@@ -32,76 +194,240 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
 .stats .chart{display:flex;align-items:flex-end;gap:8px;height:190px}
 .stats .col{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;text-align:center}
 .stats .val{font-size:.85rem;font-weight:700;margin-bottom:4px}
-.stats .sail{width:100%;max-width:44px;min-height:3px;background:var(--accent);border-radius:6px 6px 0 0}
+
+/* Statistik-Balken Animation */
+.stats .sail {
+  width: 100%;
+  max-width: 44px;
+  min-height: 3px;
+  background: var(--accent);
+  border-radius: 6px 6px 0 0;
+  transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 .stats .nm{font-size:.7rem;color:var(--muted);line-height:1.2;margin-top:6px;height:2.4em;overflow:hidden;word-break:break-word}
 </style>
+
+<!-- Firebase App + Firestore SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+
+<!-- INFO POPUP -->
+<div id="info-modal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h2 id="modal-titel">Hinweis</h2>
+    <p id="modal-text">Möchtest du diese Seite jetzt öffnen?</p>
+    <div class="modal-buttons">
+      <button class="modal-btn secondary" onclick="schliesseInfo()">Abbrechen</button>
+      <button class="modal-btn primary" onclick="bestaetigeWeiterleitung()">Öffnen</button>
+    </div>
+  </div>
+</div>
+
 <main>
-  <h1>Games</h1>
-  <p class="sub">Wähle ein Game aus</p>
+  <!-- ZENTRIERTER KATEGORIE UMSCHALTER -->
+  <div class="tab-container" role="tablist">
+    <button class="tab-btn active" id="tab-games" onclick="setKategorie('games')">Games</button>
+    <button class="tab-btn" id="tab-useful" onclick="setKategorie('useful')">Nützliche Webseiten</button>
+  </div>
+
+  <h1 id="titel">Games</h1>
+  <p class="sub" id="untertitel">Wähle ein Game aus</p>
   <ul id="liste"></ul>
 </main>
 <aside class="stats" id="stats" aria-label="Statistik"></aside>
 
 <script>
 /* ============================================================
-   HIER ANPASSEN
-   - Seite hinzufügen: neue Zeile kopieren und ausfüllen.
-   - Domain ändern: Wert bei "url" überschreiben.
-   - Foto: bei "bild" einen Dateinamen (Bild im selben Ordner) oder eine Bild-Adresse (https://...) eintragen.
+   INFO MODAL STEUERUNG
+   ============================================================ */
+let zielUrl = "";
+let zielId = "";
+
+function starteLinkAufruf(e, item) {
+  // Wenn zeigeInfo explizit auf false steht, direkt öffnen
+  if (item.zeigeInfo === false) {
+    zaehle(item.id);
+    return;
+  }
+
+  // Ansonsten Klick abfangen und Modal anzeigen
+  e.preventDefault();
+  zielUrl = item.url;
+  zielId = item.id;
+
+  document.getElementById("modal-titel").textContent = item.name;
+  document.getElementById("modal-text").textContent = item.infoText || `Du wirst zu "${item.name}" weitergeleitet. Möchtest du fortfahren?`;
+  
+  document.getElementById("info-modal").classList.remove("hidden");
+}
+
+function bestaetigeWeiterleitung() {
+  if (zielUrl) {
+    zaehle(zielId);
+    // Im selben Tab/Fenster öffnen:
+    window.location.href = zielUrl;
+  }
+  schliesseInfo();
+}
+
+function schliesseInfo() {
+  document.getElementById("info-modal").classList.add("hidden");
+  zielUrl = "";
+  zielId = "";
+}
+
+/* ============================================================
+   FIRESTORE KONFIGURATION
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "DEIN_API_KEY",
+  projectId: "liste-29c5c"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ============================================================
+   SEITEN-DATEN
    ============================================================ */
 const SEITEN = [
-  { name: "FFA Shooter",          url: "https://rd-glitchedguy.github.io/FFA/",                       bild: "data:image/jpeg;base64,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" },
-  { name: "Flight Simulator",     url: "https://rd-glitchedguy.github.io/Flight-sim/",                bild: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTD_funnaBtOevhYKQY0RKC0b7S52W2sycNQ-Hrxzb5xw&s=10" },
-  { name: "Stick-man",            url: "https://tewe444.github.io/stick-man/",                        bild: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkgHuLI8Ws0a4ezde-ADOK4FoacPS17NpV83Hwhgr3og&s=10" },
-  { name: "Crazy Games",          url: "https://crazygames.com",                                      bild: "https://play-lh.googleusercontent.com/zGvYCipVc-uIpRVf6P5maUThHJyuNE35Y-tQCQz6tYigWuxlZThhQh0Te8G0SlLi1j8PAgHds8EkL2KXkKPG=s256-rw" },
-  // { name: "Neue Seite", url: "https://beispiel.de", bild: "foto.jpg" },
+  // --- GAMES ---
+  { 
+    id: "ffa_shooter",          
+    kategorie: "games",  
+    name: "FFA Shooter",          
+    url: "https://rd-glitchedguy.github.io/FFA/",                       
+    bild: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAD+AQADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKrobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD65uI9hyOlVpYo5UKOoII5zWlKoZcGqTrtYiuGSO6lNnB+I/B0czvNYkI/XZ61zmjW17peqgTQsEY7GwK9XuF4DCoG0yKfEroMjkcdayeGjJ80dGfQ4fOqkaTp1dV+Jz4jduik/hTxbTHpG1dPHbRmMYQKw46VHJEyHpx6itPY2OP69d2SOaaGVeqN+VRkeorpSARyAaiktoX6xjNL2fY0ji+6OfpK2X02Js7cg1Wm0u4XlFLCk4SRtHE031M+irDWlwOsRFRNG6H5lYfhU6mqmnsxlFLg5pRG56IT+FFyrjKKeY3B5Rh+FIRg4INO4XQ2ilx9aMUXAKKX8KMUrhcSinpG7/dVjUy2c5/5ZmjUlzit2VqWrIsbj+5ilNjcAfdosyfaw7lWipJIZI/vqRTallJp7CYopaMUrgFFLiipuFwxRS0YpXFc76q1yh3AgVZpGGV4rttfQ+Ui7O5T8gsMHoamEQUYz0p1PPIBrWmki5TbI1iX8aRoc8VIODTiM8jvWjSJ5mZ89ow+ZBUUVuxOXGBWuF9aVo1PUVHs0aLEX/2Q==",
+    zeigeInfo: true,
+    infoText: "Achtung: Alle Inhalte auf dieser Website sind öffentlich einsehbar und nicht privat!"
+  },
+  { 
+    id: "flight_simulator",     
+    kategorie: "games",  
+    name: "Flight Simulator",     
+    url: "https://rd-glitchedguy.github.io/Flight-sim/",                
+    bild: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTD_funnaBtOevhYKQY0RKC0b7S52W2sycNQ-Hrxzb5xw&s=10",
+    zeigeInfo: false
+  },
+  { 
+    id: "stick_man",            
+    kategorie: "games",  
+    name: "Stick-man",            
+    url: "https://tewe444.github.io/stick-man/",                        
+    bild: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkgHuLI8Ws0a4ezde-ADOK4FoacPS17NpV83Hwhgr3og&s=10",
+    zeigeInfo: false
+  },
+  { 
+    id: "crazy_games",          
+    kategorie: "games",  
+    name: "Crazy Games",          
+    url: "https://crazygames.com",                                      
+    bild: "https://play-lh.googleusercontent.com/zGvYCipVc-uIpRVf6P5maUThHJyuNE35Y-tQCQz6tYigWuxlZThhQh0Te8G0SlLi1j8PAgHds8EkL2KXkKPG=s256-rw",
+    zeigeInfo: false
+  },
+  
+  // --- NÜTZLICHE WEBSEITEN ---
+  { 
+    id: "live-chat",            
+    kategorie: "useful", 
+    name: "Live Chat",            
+    url: "https://tewe444.github.io/live-chat/",                                       
+    bild: "chat-icon.png",
+    zeigeInfo: true,
+    infoText: "Du verlässt diese Seite und wirst zu Wikipedia weitergeleitet."
+  },
+  {
+    id: "duolingoweb",            
+    kategorie: "useful", 
+    name: "DuolingoWeb",            
+    url: "https://www.duolingo.com/",                                       
+    bild: "https://developer.android.com/static/images/distribute/stories/duolingo-icon.png?hl=de",
+    zeigeInfo: false,
+  }
 ];
 
 const liste = document.getElementById("liste");
 const statsBox = document.getElementById("stats");
+const titel = document.getElementById("titel");
+const untertitel = document.getElementById("untertitel");
 
-/* Spielzähler: wird im Browser gespeichert (localStorage) */
-const SPEICHER = "linkhub-gespielt";
-function ladeZaehler() {
-  try { return JSON.parse(localStorage.getItem(SPEICHER)) || {}; } catch (e) { return {}; }
+let aktiveKategorie = "games";
+let datenbankZaehler = {};
+
+function setKategorie(kat) {
+  aktiveKategorie = kat;
+  document.getElementById("tab-games").classList.toggle("active", kat === "games");
+  document.getElementById("tab-useful").classList.toggle("active", kat === "useful");
+
+  if (kat === "games") {
+    titel.textContent = "Games";
+    untertitel.textContent = "Wähle ein Game aus";
+  } else {
+    titel.textContent = "Nützliche Webseiten";
+    untertitel.textContent = "Wähle eine Webseite aus";
+  }
+
+  zeichne();
 }
-function zaehle(url) {
-  const z = ladeZaehler();
-  z[url] = (z[url] || 0) + 1;
-  try { localStorage.setItem(SPEICHER, JSON.stringify(z)); } catch (e) {}
+
+function zaehle(id) {
+  const docRef = db.collection("stats").doc(id);
+  docRef.set({
+    clicks: firebase.firestore.FieldValue.increment(1)
+  }, { merge: true });
 }
+
 function sortiert() {
-  const z = ladeZaehler();
-  return SEITEN.map((s, i) => ({ s, i, n: z[s.url] || 0 }))
+  return SEITEN
+    .filter(s => s.kategorie === aktiveKategorie)
+    .map((s, i) => ({ s, i, n: datenbankZaehler[s.id] || 0 }))
     .sort((a, b) => b.n - a.n || a.i - b.i);
 }
 
 function zeichneStats() {
   const rang = sortiert();
   const max = rang[0] ? rang[0].n : 0;
+  const summe = rang.reduce((acc, curr) => acc + curr.n, 0);
+  const isOverflow = max > 999;
+
   statsBox.textContent = "";
   const box = document.createElement("div"); box.className = "stats-box";
   const h = document.createElement("h2"); h.textContent = "Statistik";
   box.append(h);
 
-  const l = document.createElement("p"); l.className = "label"; l.textContent = "Meist gespielt";
+  const l = document.createElement("p"); l.className = "label"; l.textContent = "Insgesamt meist genutzt";
   const t = document.createElement("p"); t.className = "top";
   const c = document.createElement("p"); c.className = "top-count";
+  
   if (max > 0) {
     t.textContent = rang[0].s.name;
-    c.textContent = max + "× gespielt";
+    if (isOverflow) {
+      const topProzent = summe ? Math.round((max / summe) * 100) : 0;
+      c.textContent = topProzent + "% aller Klicks";
+    } else {
+      c.textContent = max + "× von allen genutzt";
+    }
   } else {
     t.textContent = "–";
-    c.textContent = "Noch nichts gespielt";
+    c.textContent = "Noch nichts aufgerufen";
   }
   box.append(l, t, c);
 
   const chart = document.createElement("div"); chart.className = "chart";
   for (const r of rang) {
     const col = document.createElement("div"); col.className = "col"; col.title = r.s.name;
-    const val = document.createElement("span"); val.className = "val"; val.textContent = r.n;
+    const val = document.createElement("span"); val.className = "val";
+    
+    if (isOverflow) {
+      const prozent = summe ? Math.round((r.n / summe) * 100) : 0;
+      val.textContent = prozent + "%";
+    } else {
+      val.textContent = r.n;
+    }
+
     const sail = document.createElement("div"); sail.className = "sail";
     sail.style.height = (max ? Math.round(r.n / max * 140) : 0) + "px";
     const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = r.s.name;
@@ -112,26 +438,32 @@ function zeichneStats() {
   statsBox.append(box);
 }
 
-function bildFuer(s) { return s.bild || ""; }
-
 function zeichne() {
   liste.textContent = "";
-  for (const { s } of sortiert()) {
+  const sortierteSeiten = sortiert();
+  
+  sortierteSeiten.forEach(({ s }, idx) => {
     let host = s.url;
     try { host = new URL(s.url).hostname.replace(/^www\./, ""); } catch (e) {}
 
     const li = document.createElement("li");
+    li.style.animationDelay = `${idx * 0.06}s`;
+
     const a = document.createElement("a");
-    a.className = "link"; a.href = s.url; a.rel = "noopener noreferrer";
-    a.addEventListener("click", () => zaehle(s.url));
-    a.addEventListener("auxclick", () => { zaehle(s.url); zeichne(); });
+    a.className = "link"; 
+    a.href = s.url; 
+    a.target = "_self"; // Öffnet im selben Tab
+    a.rel = "noopener noreferrer";
+    
+    // Klick-Event fangen für Info-Steuerung
+    a.addEventListener("click", (e) => starteLinkAufruf(e, s));
 
     const ico = document.createElement("span");
     ico.className = "ico";
-    const src = bildFuer(s);
-    if (src) {
+    if (s.bild) {
       const img = document.createElement("img");
-      img.src = src; img.alt = "";
+      img.src = s.bild; 
+      img.alt = "";
       img.onerror = () => { ico.textContent = s.name.charAt(0).toUpperCase(); };
       ico.append(img);
     } else {
@@ -140,16 +472,29 @@ function zeichne() {
 
     const txt = document.createElement("span");
     txt.className = "txt";
-    const n = document.createElement("span"); n.className = "name"; n.textContent = s.name;
-    const d = document.createElement("span"); d.className = "dom"; d.textContent = host;
+    const n = document.createElement("span"); 
+    n.className = "name"; 
+    n.textContent = s.name;
+    const d = document.createElement("span"); 
+    d.className = "dom"; 
+    d.textContent = host;
+
     txt.append(n, d);
     a.append(ico, txt);
-
     li.append(a);
     liste.append(li);
-  }
+  });
+
   zeichneStats();
 }
+
+db.collection("stats").onSnapshot((snapshot) => {
+  datenbankZaehler = {};
+  snapshot.forEach((doc) => {
+    datenbankZaehler[doc.id] = doc.data().clicks || 0;
+  });
+  zeichne();
+});
 
 zeichne();
 </script>
