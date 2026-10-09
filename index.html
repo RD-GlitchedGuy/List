@@ -433,7 +433,13 @@ function zeichneStats() {
   box.append(l, t, c);
 
   const chart = document.createElement("div"); chart.className = "chart";
-  for (const r of rang) {
+  let anzeige = rang;
+  if (rang.length > 5) {
+    const restSumme = rang.slice(4).reduce((acc, curr) => acc + curr.n, 0);
+    anzeige = rang.slice(0, 4).concat([{ s: { name: "Andere" }, n: restSumme }]);
+  }
+  const maxBalken = Math.max(0, ...anzeige.map(r => r.n));
+  for (const r of anzeige) {
     const col = document.createElement("div"); col.className = "col"; col.title = r.s.name;
     const val = document.createElement("span"); val.className = "val";
     
@@ -445,7 +451,7 @@ function zeichneStats() {
     }
 
     const sail = document.createElement("div"); sail.className = "sail";
-    sail.style.height = (max ? Math.round(r.n / max * 140) : 0) + "px";
+    sail.style.height = (maxBalken ? Math.round(r.n / maxBalken * 140) : 0) + "px";
     const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = r.s.name;
     col.append(val, sail, nm);
     chart.append(col);
