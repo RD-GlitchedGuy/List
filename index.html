@@ -60,7 +60,7 @@ main{max-width:680px;margin:0 auto;padding:32px 20px 64px}
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 28px;
-  max-width: 420px;
+  max-width: 600px;
   width: 100%;
   text-align: center;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
@@ -192,7 +192,7 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
 .stats .top{font-weight:700;font-size:1.2rem;color:var(--accent);margin:2px 0 0}
 .stats .top-count{color:var(--muted);font-size:.9rem;margin:0 0 14px}
 .stats .chart{display:flex;align-items:flex-end;gap:8px;height:190px}
-.stats .col{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;text-align:center}
+.stats .col{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;text-align:center;position:relative}
 .stats .val{font-size:.85rem;font-weight:700;margin-bottom:4px}
 
 /* Statistik-Balken Animation */
@@ -206,6 +206,39 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
 }
 
 .stats .nm{font-size:.7rem;color:var(--muted);line-height:1.2;margin-top:6px;height:2.4em;overflow:hidden;word-break:break-word}
+
+/* Interaktiver Stunden-Chart mit fließendem Linien-Hover */
+#tages-chart-container {
+  position: relative;
+  cursor: crosshair;
+}
+.hourly-hover-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+  display: none;
+  z-index: 5;
+  transform: translateX(-50%);
+}
+.hourly-tooltip {
+  position: absolute;
+  background: var(--card);
+  border: 1px solid var(--accent);
+  color: var(--ink);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  pointer-events: none;
+  display: none;
+  z-index: 10;
+  transform: translate(-50%, -130%);
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.7);
+}
 </style>
 
 <!-- Firebase App + Firestore SDK -->
@@ -222,6 +255,37 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
     <div class="modal-buttons">
       <button class="modal-btn secondary" onclick="schliesseInfo()">Abbrechen</button>
       <button class="modal-btn primary" onclick="bestaetigeWeiterleitung()">Öffnen</button>
+    </div>
+  </div>
+</div>
+
+<!-- WOCHENSTATUS MODAL -->
+<div id="wochenstatus-modal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width: 600px; text-align: left;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h2 id="wochenstatus-titel" style="margin: 0;">Wochenstatus</h2>
+      <button class="modal-btn secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="schliesseWochenstatus()">✕</button>
+    </div>
+    <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 16px;">Klicke auf einen Wochentag-Button, um die stündliche Statistik für diesen Tag anzuzeigen.</p>
+    <ul id="wochenstatus-liste" style="max-height: 360px; overflow-y: auto; display: grid; gap: 10px; padding-right: 4px;"></ul>
+  </div>
+</div>
+
+<!-- TAGES-DETAIL MODAL (Stunden-Ansicht) -->
+<div id="tages-detail-modal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width: 620px;">
+    <h2 id="tages-titel">Stunden-Statistik</h2>
+    <p id="tages-untertitel" style="color: var(--muted); margin-bottom: 20px; font-size: 0.9rem;"></p>
+
+    <div class="stats" style="padding: 0; margin-bottom: 20px;">
+      <div id="tages-chart-container" class="stats-box" style="box-shadow: none; border: none; background: rgba(255,255,255,0.03);">
+        <div class="chart" id="tages-chart" style="height: 180px; gap: 2px;"></div>
+        <div id="hourly-line" class="hourly-hover-line"></div>
+        <div id="hourly-tooltip" class="hourly-tooltip"></div>
+      </div>
+    </div>
+    <div class="modal-buttons">
+      <button class="modal-btn primary" onclick="schliesseTagesDetail()">Schließen</button>
     </div>
   </div>
 </div>
@@ -247,14 +311,16 @@ let zielUrl = "";
 let zielId = "";
 
 function starteLinkAufruf(e, item) {
-  // Wenn zeigeInfo explizit auf false steht, direkt öffnen
+  e.preventDefault();
+
   if (item.zeigeInfo === false) {
     zaehle(item.id);
+    setTimeout(() => {
+      window.location.href = item.url;
+    }, 200);
     return;
   }
 
-  // Ansonsten Klick abfangen und Modal anzeigen
-  e.preventDefault();
   zielUrl = item.url;
   zielId = item.id;
 
@@ -267,10 +333,14 @@ function starteLinkAufruf(e, item) {
 function bestaetigeWeiterleitung() {
   if (zielUrl) {
     zaehle(zielId);
-    // Im selben Tab/Fenster öffnen:
-    window.location.href = zielUrl;
+    const urlToOpen = zielUrl;
+    schliesseInfo();
+    setTimeout(() => {
+      window.location.href = urlToOpen;
+    }, 200);
+  } else {
+    schliesseInfo();
   }
-  schliesseInfo();
 }
 
 function schliesseInfo() {
@@ -399,15 +469,52 @@ function setKategorie(kat) {
 
 function zaehle(id) {
   const docRef = db.collection("stats").doc(id);
+  const now = new Date();
+  const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const jsDay = now.getDay();
+  const tagKey = tage[jsDay === 0 ? 6 : jsDay - 1];
+  const hourKey = String(now.getHours());
+
+  // Wir speichern nur noch die Stunden und den Gesamtwähler
   docRef.set({
-    clicks: firebase.firestore.FieldValue.increment(1)
+    clicks: firebase.firestore.FieldValue.increment(1),
+    [`hours.${tagKey}.${hourKey}`]: firebase.firestore.FieldValue.increment(1)
   }, { merge: true });
+}
+
+/* ============================================================
+   BERECHNET TAGE AUTOMATISCH AUS DEN STUNDEN
+   ============================================================ */
+function getHourClicks(data, tag, hour) {
+  if (!data) return 0;
+  if (data.hours && data.hours[tag] && typeof data.hours[tag][hour] === 'number') return data.hours[tag][hour];
+  if (typeof data[`hours.${tag}.${hour}`] === 'number') return data[`hours.${tag}.${hour}`];
+  return 0;
+}
+
+function getDayClicks(data, tag) {
+  let sum = 0;
+  for (let h = 0; h < 24; h++) {
+    sum += getHourClicks(data, tag, String(h));
+  }
+  return sum;
+}
+
+function getKlicks(id) {
+  const data = datenbankZaehler[id] || {};
+  if (typeof data.clicks === 'number') return data.clicks;
+  const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  let sum = 0;
+  tage.forEach(tag => {
+    sum += getDayClicks(data, tag);
+  });
+  return sum;
 }
 
 function sortiert() {
   return SEITEN
     .filter(s => s.kategorie === aktiveKategorie)
-    .map((s, i) => ({ s, i, n: datenbankZaehler[s.id] || 0 }))
+    .map((s, i) => ({ s, i, n: getKlicks(s.id) }))
     .sort((a, b) => b.n - a.n || a.i - b.i);
 }
 
@@ -419,7 +526,8 @@ function zeichneStats() {
 
   statsBox.textContent = "";
   const box = document.createElement("div"); box.className = "stats-box";
-  const h = document.createElement("h2"); h.textContent = "Statistik";
+  const h = document.createElement("h2"); 
+  h.textContent = aktiveKategorie === "games" ? "Statistik (Games)" : "Statistik (Nützliche Webseiten)";
   box.append(h);
 
   const l = document.createElement("p"); l.className = "label"; l.textContent = "Insgesamt meist genutzt";
@@ -465,7 +573,186 @@ function zeichneStats() {
     chart.append(col);
   }
   box.append(chart);
+
+  if (aktiveKategorie === "games") {
+    const btnWochenstatus = document.createElement("button");
+    btnWochenstatus.className = "modal-btn primary";
+    btnWochenstatus.style.width = "100%";
+    btnWochenstatus.style.marginTop = "16px";
+    btnWochenstatus.textContent = "Wochenstatus (Games)";
+    btnWochenstatus.onclick = oeffneWochenstatus;
+    box.append(btnWochenstatus);
+  }
+
   statsBox.append(box);
+}
+
+/* ============================================================
+   WOCHENSTATUS & STUNDEN-DETAIL STEUERUNG
+   ============================================================ */
+function oeffneWochenstatus() {
+  const listeEl = document.getElementById("wochenstatus-liste");
+  listeEl.textContent = "";
+
+  document.getElementById("wochenstatus-titel").textContent = "Wochenstatus (Games)";
+
+  const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  
+  const gamesSeiten = SEITEN
+    .filter(s => s.kategorie === "games")
+    .map((s, i) => ({ s, i, n: getKlicks(s.id) }))
+    .sort((a, b) => b.n - a.n || a.i - b.i)
+    .map(item => item.s);
+
+  gamesSeiten.forEach(s => {
+    const li = document.createElement("li");
+    li.style.display = "flex";
+    li.style.alignItems = "center";
+    li.style.justifyContent = "space-between";
+    li.style.background = "var(--bg)";
+    li.style.border = "1px solid var(--line)";
+    li.style.borderRadius = "10px";
+    li.style.padding = "10px 14px";
+    li.style.gap = "10px";
+
+    const leftDiv = document.createElement("div");
+    leftDiv.style.display = "flex";
+    leftDiv.style.alignItems = "center";
+    leftDiv.style.gap = "12px";
+    leftDiv.style.minWidth = "0";
+
+    const ico = document.createElement("span");
+    ico.className = "ico";
+    ico.style.width = "40px";
+    ico.style.height = "40px";
+    ico.style.fontSize = "1.1rem";
+    if (s.bild) {
+      const img = document.createElement("img");
+      img.src = s.bild;
+      img.alt = "";
+      img.onerror = () => { ico.textContent = s.name.charAt(0).toUpperCase(); };
+      ico.append(img);
+    } else {
+      ico.textContent = s.name.charAt(0).toUpperCase();
+    }
+
+    const nameSpan = document.createElement("span");
+    nameSpan.style.fontWeight = "700";
+    nameSpan.style.fontSize = "0.95rem";
+    nameSpan.style.overflow = "hidden";
+    nameSpan.style.textOverflow = "ellipsis";
+    nameSpan.style.whiteSpace = "nowrap";
+    nameSpan.textContent = s.name;
+
+    leftDiv.append(ico, nameSpan);
+
+    const daysDiv = document.createElement("div");
+    daysDiv.style.display = "flex";
+    daysDiv.style.alignItems = "center";
+    daysDiv.style.gap = "4px";
+
+    tage.forEach(tag => {
+      const dayBtn = document.createElement("button");
+      dayBtn.textContent = tag;
+      dayBtn.title = `${s.name} - ${tag}`;
+      dayBtn.style.background = "var(--line)";
+      dayBtn.style.color = "var(--ink)";
+      dayBtn.style.border = "none";
+      dayBtn.style.padding = "4px 6px";
+      dayBtn.style.fontSize = "0.75rem";
+      dayBtn.style.fontWeight = "700";
+      dayBtn.style.borderRadius = "6px";
+      dayBtn.style.cursor = "pointer";
+      dayBtn.style.transition = "transform 0.2s, background 0.2s, filter 0.2s";
+
+      dayBtn.addEventListener("mouseenter", () => { 
+        dayBtn.style.transform = "scale(1.15)"; 
+        dayBtn.style.filter = "brightness(1.2)";
+      });
+      dayBtn.addEventListener("mouseleave", () => { 
+        dayBtn.style.transform = "scale(1)"; 
+        dayBtn.style.filter = "none";
+      });
+
+      dayBtn.addEventListener("click", () => {
+        schliesseWochenstatus();
+        zeigeStundenDetail(s, tag);
+      });
+
+      daysDiv.append(dayBtn);
+    });
+
+    li.append(leftDiv, daysDiv);
+    listeEl.append(li);
+  });
+
+  document.getElementById("wochenstatus-modal").classList.remove("hidden");
+}
+
+function schliesseWochenstatus() {
+  document.getElementById("wochenstatus-modal").classList.add("hidden");
+}
+
+function zeigeStundenDetail(s, aktuellerTag) {
+  document.getElementById("tages-titel").textContent = s.name;
+  
+  const itemData = datenbankZaehler[s.id] || {};
+  document.getElementById("tages-untertitel").textContent = `Stundenstatistik für ${aktuellerTag} (Bewege die Maus über das Diagramm)`;
+
+  const chart = document.getElementById("tages-chart");
+  chart.textContent = "";
+
+  const stunden = Array.from({length: 24}, (_, i) => String(i));
+  const maxVal = Math.max(1, ...stunden.map(h => getHourClicks(itemData, aktuellerTag, h)));
+
+  stunden.forEach(h => {
+    const val = getHourClicks(itemData, aktuellerTag, h);
+    const col = document.createElement("div"); 
+    col.className = "col"; 
+
+    const sail = document.createElement("div"); 
+    sail.className = "sail";
+    sail.style.height = Math.round((val / maxVal) * 110) + "px";
+    sail.style.background = val > 0 ? "var(--btn-active)" : "var(--line)";
+    
+    col.append(sail);
+    chart.append(col);
+  });
+
+  const container = document.getElementById("tages-chart-container");
+  const line = document.getElementById("hourly-line");
+  const tooltip = document.getElementById("hourly-tooltip");
+
+  container.onmousemove = (e) => {
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const width = rect.width;
+    
+    if (x >= 0 && x <= width) {
+      const ratio = Math.max(0, Math.min(1, x / width));
+      const hourIndex = Math.min(23, Math.floor(ratio * 24));
+      const val = getHourClicks(itemData, aktuellerTag, String(hourIndex));
+
+      line.style.left = x + "px";
+      line.style.display = "block";
+
+      tooltip.style.left = x + "px";
+      tooltip.style.top = (e.clientY - rect.top - 10) + "px";
+      tooltip.textContent = `${hourIndex}:00 - ${hourIndex+1}:00 Uhr: ${val} Klicks`;
+      tooltip.style.display = "block";
+    }
+  };
+
+  container.onmouseleave = () => {
+    line.style.display = "none";
+    tooltip.style.display = "none";
+  };
+
+  document.getElementById("tages-detail-modal").classList.remove("hidden");
+}
+
+function schliesseTagesDetail() {
+  document.getElementById("tages-detail-modal").classList.add("hidden");
 }
 
 function zeichne() {
@@ -482,10 +769,9 @@ function zeichne() {
     const a = document.createElement("a");
     a.className = "link"; 
     a.href = s.url; 
-    a.target = "_self"; // Öffnet im selben Tab
+    a.target = "_self";
     a.rel = "noopener noreferrer";
     
-    // Klick-Event fangen für Info-Steuerung
     a.addEventListener("click", (e) => starteLinkAufruf(e, s));
 
     const ico = document.createElement("span");
@@ -521,7 +807,7 @@ function zeichne() {
 db.collection("stats").onSnapshot((snapshot) => {
   datenbankZaehler = {};
   snapshot.forEach((doc) => {
-    datenbankZaehler[doc.id] = doc.data().clicks || 0;
+    datenbankZaehler[doc.id] = doc.data() || {};
   });
   zeichne();
 });
