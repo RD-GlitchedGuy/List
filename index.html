@@ -266,7 +266,6 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
       <h2 id="wochenstatus-titel" style="margin: 0;">Wochenstatus</h2>
       <button class="modal-btn secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="schliesseWochenstatus()">✕</button>
     </div>
-    <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 16px;">Klicke auf einen Wochentag-Button, um die stündliche Statistik für diesen Tag anzuzeigen.</p>
     <ul id="wochenstatus-liste" style="max-height: 360px; overflow-y: auto; display: grid; gap: 10px; padding-right: 4px;"></ul>
   </div>
 </div>
@@ -527,7 +526,7 @@ function zeichneStats() {
   statsBox.textContent = "";
   const box = document.createElement("div"); box.className = "stats-box";
   const h = document.createElement("h2"); 
-  h.textContent = aktiveKategorie === "games" ? "Statistik (Games)" : "Statistik (Nützliche Webseiten)";
+  h.textContent = aktiveKategorie === "games" ? "Statistik" : "Statistik";
   box.append(h);
 
   const l = document.createElement("p"); l.className = "label"; l.textContent = "Insgesamt meist genutzt";
@@ -579,7 +578,7 @@ function zeichneStats() {
     btnWochenstatus.className = "modal-btn primary";
     btnWochenstatus.style.width = "100%";
     btnWochenstatus.style.marginTop = "16px";
-    btnWochenstatus.textContent = "Wochenstatus (Games)";
+    btnWochenstatus.textContent = "Wochenstatus";
     btnWochenstatus.onclick = oeffneWochenstatus;
     box.append(btnWochenstatus);
   }
@@ -594,7 +593,7 @@ function oeffneWochenstatus() {
   const listeEl = document.getElementById("wochenstatus-liste");
   listeEl.textContent = "";
 
-  document.getElementById("wochenstatus-titel").textContent = "Wochenstatus (Games)";
+  document.getElementById("wochenstatus-titel").textContent = "Wochenstatus";
 
   const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
   
@@ -697,7 +696,7 @@ function zeigeStundenDetail(s, aktuellerTag) {
   document.getElementById("tages-titel").textContent = s.name;
   
   const itemData = datenbankZaehler[s.id] || {};
-  document.getElementById("tages-untertitel").textContent = `Stundenstatistik für ${aktuellerTag} (Bewege die Maus über das Diagramm)`;
+  document.getElementById("tages-untertitel").textContent = `Stundenstatistik für ${aktuellerTag}`;
 
   const chart = document.getElementById("tages-chart");
   chart.textContent = "";
