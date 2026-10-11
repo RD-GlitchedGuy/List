@@ -33,6 +33,56 @@ main{max-width:680px;margin:0 auto;padding:32px 20px 64px}
   }
 }
 
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+}
+
+/* Toast-Popup rechts unten (Rot) */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.toast-msg {
+  background: var(--card);
+  border: 1px solid var(--btn-danger);
+  color: var(--ink);
+  padding: 14px 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+  font-size: 0.9rem;
+  font-weight: 700;
+  pointer-events: auto;
+  animation: slideInRight 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  max-width: 320px;
+}
+.toast-msg.hiding {
+  animation: slideOutRight 0.3s ease forwards;
+}
+
 /* Info-Modal / Overlay Styling */
 .modal-overlay {
   position: fixed;
@@ -101,6 +151,10 @@ main{max-width:680px;margin:0 auto;padding:32px 20px 64px}
 .modal-btn.secondary {
   background: var(--line);
   color: var(--ink);
+}
+.modal-btn.danger {
+  background: var(--btn-danger);
+  color: #ffffff;
 }
 .modal-btn:hover {
   transform: scale(1.03);
@@ -173,16 +227,43 @@ li:hover {
 a.link{flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding:12px 14px;color:inherit;text-decoration:none}
 a.link:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
 
-/* Bild-Zoom bei Hover */
-.ico{flex:none;width:64px;height:64px;border-radius:10px;background:var(--accent);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:1.5rem;overflow:hidden}
+/* Logo / Icon im Hintergrund-Look */
+.ico{flex:none;width:64px;height:64px;border-radius:10px;background:var(--line);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:1.4rem;overflow:hidden;border:1px solid rgba(255,255,255,0.04)}
 .ico img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s ease}
 li:hover .ico img {
   transform: scale(1.08);
 }
 
-.txt{min-width:0}
+.txt{min-width:0; flex: 1;}
 .name{font-weight:700;display:block}
 .dom{color:var(--muted);font-size:.9rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  padding-right: 14px;
+}
+/* Kleiner runder Feedback-Button mit grauem Logo */
+.feedback-btn {
+  width: 36px;
+  height: 36px;
+  background: var(--line);
+  color: var(--muted);
+  border: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s, color 0.2s, box-shadow 0.2s;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.feedback-btn:hover {
+  background: var(--accent);
+  color: var(--bg);
+  transform: scale(1.12);
+  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
+}
 
 aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
 @media (min-width:1100px){aside.stats{position:fixed;top:48px;right:24px;width:260px;max-width:none;margin:0;padding:0}}
@@ -239,6 +320,44 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
   white-space: nowrap;
   box-shadow: 0 6px 20px rgba(0,0,0,0.7);
 }
+
+.form-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 10px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  margin-bottom: 14px;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Footer Styling für GitHub Links */
+footer {
+  max-width: 680px;
+  margin: 40px auto 20px;
+  padding: 20px;
+  text-align: center;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+footer a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+  margin: 0 8px;
+  transition: filter 0.2s;
+}
+footer a:hover {
+  filter: brightness(1.2);
+  text-decoration: underline;
+}
 </style>
 
 <!-- Firebase App + Firestore SDK -->
@@ -246,6 +365,15 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+
+<!-- TOAST CONTAINER FÜR POP-UPS RECHTS UNTEN -->
+<div id="toast-container"></div>
+
+<!-- ENTWICKLER ADMIN LEISTE -->
+<div id="dev-bar" style="display: none; background: var(--card); border-bottom: 1px solid var(--line); padding: 10px 20px; text-align: center; position: sticky; top: 0; z-index: 999;">
+  <span style="font-size: 0.85rem; color: var(--accent); font-weight: 700; margin-right: 15px;">Dev-FeedBack-Menu</span>
+  <button class="modal-btn primary" style="padding: 6px 14px; font-size: 0.85rem;" onclick="oeffneFeedbackListe()">Feedback-Liste ansehen</button>
+</div>
 
 <!-- INFO POPUP -->
 <div id="info-modal" class="modal-overlay hidden">
@@ -259,6 +387,44 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
   </div>
 </div>
 
+<!-- FEEDBACK EINGABE MODAL -->
+<div id="feedback-modal" class="modal-overlay hidden">
+  <div class="modal-card" style="text-align: left;">
+    <h2 id="feedback-modal-titel">Feedback geben</h2>
+    <p style="margin-bottom: 16px; font-size: 0.85rem; color: var(--muted);">Teile uns deine Meinung oder Fehler zu diesem Spiel mit.</p>
+    
+    <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 4px;">Dein Feedback</label>
+    <textarea id="feedback-text" class="form-input" rows="4" placeholder="Schreibe hier dein Feedback..."></textarea>
+
+    <div class="modal-buttons">
+      <button class="modal-btn secondary" onclick="schliesseFeedbackModal()">Abbrechen</button>
+      <button class="modal-btn primary" onclick="sendeFeedback()">Absenden</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEV FEEDBACK LISTE MODAL -->
+<div id="dev-feedback-modal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width: 650px; text-align: left;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h2 style="margin: 0;">Eingegangene Feedbacks</h2>
+      <button class="modal-btn secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="schliesseFeedbackListe()">✕</button>
+    </div>
+    <ul id="dev-feedback-liste" style="max-height: 400px; overflow-y: auto; display: grid; gap: 10px; padding-right: 4px;"></ul>
+  </div>
+</div>
+
+<!-- BUG GEFIXT BENACHRICHTIGUNG MODAL -->
+<div id="bug-fix-modal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h2>Meldung vom Entwickler</h2>
+    <p id="bug-fix-text" style="font-size: 1.1rem; margin-bottom: 24px;"></p>
+    <div class="modal-buttons">
+      <button class="modal-btn primary" onclick="schliesseBugFixModal()">Verstanden</button>
+    </div>
+  </div>
+</div>
+
 <!-- WOCHENSTATUS MODAL -->
 <div id="wochenstatus-modal" class="modal-overlay hidden">
   <div class="modal-card" style="max-width: 600px; text-align: left;">
@@ -266,6 +432,7 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
       <h2 id="wochenstatus-titel" style="margin: 0;">Wochenstatus</h2>
       <button class="modal-btn secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="schliesseWochenstatus()">✕</button>
     </div>
+
     <ul id="wochenstatus-liste" style="max-height: 360px; overflow-y: auto; display: grid; gap: 10px; padding-right: 4px;"></ul>
   </div>
 </div>
@@ -302,12 +469,64 @@ aside.stats{max-width:680px;margin:0 auto;padding:0 20px 48px}
 </main>
 <aside class="stats" id="stats" aria-label="Statistik"></aside>
 
+<!-- FOOTER MIT GITHUB LINKS -->
+<footer>
+  Besuche uns auf GitHub: 
+  <a href="https://github.com/Tewe444" target="_blank" rel="noopener noreferrer">Tewe444</a> | 
+  <a href="https://github.com/RD-GlitchedGuy" target="_blank" rel="noopener noreferrer">RD-GlitchedGuy</a>
+</footer>
+
 <script>
 /* ============================================================
-   INFO MODAL STEUERUNG
+   FIRESTORE & APP INITIALISIERUNG (GANZ OBEN)
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "DEIN_API_KEY",
+  projectId: "liste-29c5c"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ============================================================
+   TOAST POPUP FUNKTION (RECHTS UNTEN, ROT)
+   ============================================================ */
+function zeigeToast(text) {
+  const container = document.getElementById("toast-container");
+  const toast = document.createElement("div");
+  toast.className = "toast-msg";
+  toast.textContent = text;
+  
+  container.append(toast);
+
+  setTimeout(() => {
+    toast.classList.add("hiding");
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, 4000);
+}
+
+/* ============================================================
+   COOKIE / ENTWICKLER MODUS PRÜFUNG
+   ============================================================ */
+function hatDevCookie() {
+  return document.cookie.split(';').some(item => item.trim().startsWith('dev_mode=true'));
+}
+
+function pruefeDevModus() {
+  if (hatDevCookie()) {
+    document.getElementById("dev-bar").style.display = "block";
+  }
+}
+
+/* ============================================================
+   INFO MODAL & FEEDBACK MODAL STEUERUNG
    ============================================================ */
 let zielUrl = "";
 let zielId = "";
+let aktivesFeedbackSpiel = null;
+let alleFeedbacksCache = [];
 
 function starteLinkAufruf(e, item) {
   e.preventDefault();
@@ -348,16 +567,189 @@ function schliesseInfo() {
   zielId = "";
 }
 
-/* ============================================================
-   FIRESTORE KONFIGURATION
-   ============================================================ */
-const firebaseConfig = {
-  apiKey: "DEIN_API_KEY",
-  projectId: "liste-29c5c"
-};
+function oeffneFeedbackModal(item) {
+  const letztesFeedbackZeit = localStorage.getItem("letztes_feedback_zeit");
+  const now = Date.now();
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+  if (letztesFeedbackZeit) {
+    const diffSeitLetztem = now - parseInt(letztesFeedbackZeit);
+    if (diffSeitLetztem < 5 * 60 * 1000) {
+      zeigeToast("Sorry es gibt ein cooldow versuche es morgen noch mal");
+      return;
+    }
+  }
+
+  aktivesFeedbackSpiel = item;
+  document.getElementById("feedback-modal-titel").textContent = `Feedback für ${item.name}`;
+  document.getElementById("feedback-text").value = "";
+  document.getElementById("feedback-modal").classList.remove("hidden");
+}
+
+function schliesseFeedbackModal() {
+  document.getElementById("feedback-modal").classList.add("hidden");
+  aktivesFeedbackSpiel = null;
+}
+
+function sendeFeedback() {
+  const text = document.getElementById("feedback-text").value.trim();
+
+  if (!text) {
+    alert("Bitte gib einen Feedback-Text ein.");
+    return;
+  }
+
+  const now = Date.now();
+  const feedbackId = 'fb_' + now + '_' + Math.random().toString(36).substring(2, 7);
+
+  db.collection("feedback").doc(feedbackId).set({
+    spielId: aktivesFeedbackSpiel.id,
+    spielName: aktivesFeedbackSpiel.name,
+    name: "Anonym",
+    text: text,
+    status: "offen",
+    userToken: feedbackId,
+    zeitpunkt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    localStorage.setItem("letztes_feedback_zeit", now);
+    localStorage.setItem("mein_feedback_token", feedbackId);
+    localStorage.setItem("mein_spiel_name", aktivesFeedbackSpiel.name);
+    alert("Vielen Dank! Dein Feedback wurde erfolgreich gespeichert.");
+    schliesseFeedbackModal();
+  }).catch((error) => {
+    console.error("Fehler beim Speichern des Feedbacks: ", error);
+    alert("Fehler beim Speichern.");
+  });
+}
+
+function loescheFeedback(id) {
+  if (confirm("Möchtest du dieses Feedback wirklich löschen?")) {
+    db.collection("feedback").doc(id).delete().then(() => {
+      oeffneFeedbackListe();
+    }).catch((error) => {
+      console.error("Fehler beim Löschen: ", error);
+    });
+  }
+}
+
+function markiereAlsFixed(fb) {
+  db.collection("feedback").doc(fb.id).update({
+    status: "gefuext"
+  }).then(() => {
+    oeffneFeedbackListe();
+  }).catch((error) => {
+    console.error("Fehler beim Aktualisieren: ", error);
+  });
+}
+
+function oeffneFeedbackListe() {
+  const listeEl = document.getElementById("dev-feedback-liste");
+  listeEl.textContent = "";
+
+  if (alleFeedbacksCache.length === 0) {
+    const li = document.createElement("li");
+    li.style.padding = "14px";
+    li.style.background = "var(--bg)";
+    li.style.color = "var(--muted)";
+    li.style.textAlign = "center";
+    li.textContent = "Keine Feedbacks vorhanden.";
+    listeEl.append(li);
+  } else {
+    alleFeedbacksCache.forEach(fb => {
+      const li = document.createElement("li");
+      li.style.display = "flex";
+      li.style.flexDirection = "column";
+      li.style.background = "var(--bg)";
+      li.style.border = "1px solid var(--line)";
+      li.style.borderRadius = "10px";
+      li.style.padding = "12px 16px";
+      li.style.gap = "8px";
+
+      const headerDiv = document.createElement("div");
+      headerDiv.style.display = "flex";
+      headerDiv.style.justifyContent = "space-between";
+      headerDiv.style.fontSize = "0.8rem";
+      headerDiv.style.color = "var(--muted)";
+
+      const spielSpan = document.createElement("span");
+      spielSpan.style.fontWeight = "700";
+      spielSpan.style.color = "var(--accent)";
+      spielSpan.textContent = fb.spielName;
+
+      const vonSpan = document.createElement("span");
+      vonSpan.textContent = `Status: ${fb.status || 'offen'}`;
+
+      headerDiv.append(spielSpan, vonSpan);
+
+      const textP = document.createElement("p");
+      textP.style.margin = "0";
+      textP.style.fontSize = "0.95rem";
+      textP.style.color = "var(--ink)";
+      textP.textContent = fb.text;
+
+      const btnDiv = document.createElement("div");
+      btnDiv.style.display = "flex";
+      btnDiv.style.gap = "8px";
+      btnDiv.style.marginTop = "4px";
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "modal-btn danger";
+      delBtn.style.padding = "4px 10px";
+      delBtn.style.fontSize = "0.75rem";
+      delBtn.textContent = "Löschen";
+      delBtn.onclick = () => loescheFeedback(fb.id);
+
+      btnDiv.append(delBtn);
+
+      if (fb.status !== "gefuext") {
+        const fixBtn = document.createElement("button");
+        fixBtn.className = "modal-btn primary";
+        fixBtn.style.padding = "4px 10px";
+        fixBtn.style.fontSize = "0.75rem";
+        fixBtn.textContent = "Bug ist fixed senden";
+        fixBtn.onclick = () => markiereAlsFixed(fb);
+        btnDiv.append(fixBtn);
+      }
+
+      li.append(headerDiv, textP, btnDiv);
+      listeEl.append(li);
+    });
+  }
+
+  document.getElementById("dev-feedback-modal").classList.remove("hidden");
+}
+
+function schliesseFeedbackListe() {
+  document.getElementById("dev-feedback-modal").classList.add("hidden");
+}
+
+function pruefeBenachrichtigungen() {
+  const meinToken = localStorage.getItem("mein_feedback_token");
+  const spielName = localStorage.getItem("mein_spiel_name") || "dem Spiel";
+  if (!meinToken) return;
+
+  db.collection("feedback").doc(meinToken).get().then((doc) => {
+    if (doc.exists) {
+      const data = doc.data();
+      if (data.status === "gefuext") {
+        document.getElementById("bug-fix-text").textContent = `Dein Bug den du gefunden hast bei ${data.spielName || spielName} wurde gefixt`;
+        document.getElementById("bug-fix-modal").classList.remove("hidden");
+        
+        db.collection("feedback").doc(meinToken).delete().then(() => {
+          localStorage.removeItem("mein_feedback_token");
+          localStorage.removeItem("mein_spiel_name");
+        });
+      }
+    } else {
+      localStorage.removeItem("mein_feedback_token");
+    }
+  }).catch((err) => {
+    console.error(err);
+  });
+}
+
+function schliesseBugFixModal() {
+  document.getElementById("bug-fix-modal").classList.add("hidden");
+}
 
 /* ============================================================
    SEITEN-DATEN
@@ -371,7 +763,8 @@ const SEITEN = [
     url: "https://rd-glitchedguy.github.io/FFA/",                       
     bild: "FFA.png",
     zeigeInfo: true,
-    infoText: "Achtung: Alle Inhalte auf dieser Website sind öffentlich einsehbar und nicht privat!"
+    infoText: "Achtung: Alle Inhalte auf dieser Website sind öffentlich einsehbar und nicht privat!",
+    feedbackErlaubt: true
   },
   { 
     id: "flight_simulator",     
@@ -379,7 +772,8 @@ const SEITEN = [
     name: "Flight Simulator",     
     url: "https://rd-glitchedguy.github.io/Flight-sim/",                
     bild: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTD_funnaBtOevhYKQY0RKC0b7S52W2sycNQ-Hrxzb5xw&s=10",
-    zeigeInfo: false
+    zeigeInfo: false,
+    feedbackErlaubt: true
   },
   { 
     id: "ballman",            
@@ -387,7 +781,8 @@ const SEITEN = [
     name: "Ballman",            
     url: "https://tewe444.github.io/ball-man/",                        
     bild: "ball-man.png",
-    zeigeInfo: false
+    zeigeInfo: false,
+    feedbackErlaubt: true
   },
   { 
     id: "pizza_simulator",            
@@ -395,16 +790,10 @@ const SEITEN = [
     name: "Pizza Simulator",            
     url: "https://tewe444.github.io/Pizza/",                        
     bild: "Pizza.png",
-    zeigeInfo: false
+    zeigeInfo: false,
+    feedbackErlaubt: true
   },  
-  { 
-    id: "crazy_games",          
-    kategorie: "games",  
-    name: "Crazy Games",          
-    url: "https://crazygames.com",                                      
-    bild: "https://play-lh.googleusercontent.com/zGvYCipVc-uIpRVf6P5maUThHJyuNE35Y-tQCQz6tYigWuxlZThhQh0Te8G0SlLi1j8PAgHds8EkL2KXkKPG=s256-rw",
-    zeigeInfo: false
-  },
+  
   // --- NÜTZLICHE WEBSEITEN ---
   { 
     id: "live-chat",            
@@ -413,15 +802,8 @@ const SEITEN = [
     url: "https://tewe444.github.io/live-chat/",                                       
     bild: "chat-icon.png",
     zeigeInfo: true,
+    feedbackErlaubt: true,
     infoText: "Achtung: Alle Inhalte auf dieser Website sind öffentlich einsehbar und nicht privat!"
-  },
-  {
-    id: "duolingoweb",            
-    kategorie: "useful", 
-    name: "DuolingoWeb",            
-    url: "https://www.duolingo.com/",                                       
-    bild: "https://developer.android.com/static/images/distribute/stories/duolingo-icon.png?hl=de",
-    zeigeInfo: false,
   },
   {
     id: "wann-ist",            
@@ -430,6 +812,7 @@ const SEITEN = [
     url: "https://tewe444.github.io/wann-ist/",                                       
     bild: "wann-ist.png",
     zeigeInfo: false,
+    feedbackErlaubt: true
   },
   {
     id: "glücksrad",            
@@ -438,6 +821,7 @@ const SEITEN = [
     url: "https://tewe444.github.io/Gl-cksrad/",                                       
     bild: "Glücksrad.png",
     zeigeInfo: false,
+    feedbackErlaubt: true
   }
 ];
 
@@ -473,7 +857,6 @@ function zaehle(id) {
   const tagKey = tage[jsDay === 0 ? 6 : jsDay - 1];
   const hourKey = String(now.getHours());
 
-  // Wir speichern nur noch die Stunden und den Gesamtwähler
   docRef.set({
     clicks: firebase.firestore.FieldValue.increment(1),
     [`hours.${tagKey}.${hourKey}`]: firebase.firestore.FieldValue.increment(1)
@@ -525,7 +908,7 @@ function zeichneStats() {
   statsBox.textContent = "";
   const box = document.createElement("div"); box.className = "stats-box";
   const h = document.createElement("h2"); 
-  h.textContent = aktiveKategorie === "games" ? "Statistik" : "Statistik";
+  h.textContent = aktiveKategorie === "games" ? "Statistik " : "Statistik";
   box.append(h);
 
   const l = document.createElement("p"); l.className = "label"; l.textContent = "Insgesamt meist genutzt";
@@ -577,7 +960,7 @@ function zeichneStats() {
     btnWochenstatus.className = "modal-btn primary";
     btnWochenstatus.style.width = "100%";
     btnWochenstatus.style.marginTop = "16px";
-    btnWochenstatus.textContent = "Wochenstatus";
+    btnWochenstatus.textContent = "Wochenstatus ";
     btnWochenstatus.onclick = oeffneWochenstatus;
     box.append(btnWochenstatus);
   }
@@ -592,7 +975,7 @@ function oeffneWochenstatus() {
   const listeEl = document.getElementById("wochenstatus-liste");
   listeEl.textContent = "";
 
-  document.getElementById("wochenstatus-titel").textContent = "Wochenstatus";
+  document.getElementById("wochenstatus-titel").textContent = "Wochenstatus ";
 
   const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
   
@@ -695,7 +1078,7 @@ function zeigeStundenDetail(s, aktuellerTag) {
   document.getElementById("tages-titel").textContent = s.name;
   
   const itemData = datenbankZaehler[s.id] || {};
-  document.getElementById("tages-untertitel").textContent = `Stundenstatistik für ${aktuellerTag}`;
+  document.getElementById("tages-untertitel").textContent = `Stundenstatistik für ${aktuellerTag} (Bewege die Maus über das Diagramm)`;
 
   const chart = document.getElementById("tages-chart");
   chart.textContent = "";
@@ -795,7 +1178,26 @@ function zeichne() {
 
     txt.append(n, d);
     a.append(ico, txt);
-    li.append(a);
+
+    const actionDiv = document.createElement("div");
+    actionDiv.className = "item-actions";
+
+    const feedbackErlaubt = s.feedbackErlaubt !== false;
+
+    if (feedbackErlaubt) {
+      const feedbackBtn = document.createElement("button");
+      feedbackBtn.className = "feedback-btn";
+      feedbackBtn.title = "Feedback geben";
+      feedbackBtn.innerHTML = "💬";
+      feedbackBtn.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        oeffneFeedbackModal(s);
+      };
+      actionDiv.append(feedbackBtn);
+    }
+
+    li.append(a, actionDiv);
     liste.append(li);
   });
 
@@ -810,6 +1212,16 @@ db.collection("stats").onSnapshot((snapshot) => {
   zeichne();
 });
 
+db.collection("feedback").orderBy("zeitpunkt", "desc").onSnapshot((snapshot) => {
+  alleFeedbacksCache = [];
+  snapshot.forEach((doc) => {
+    alleFeedbacksCache.push({ id: doc.id, ...doc.data() });
+  });
+});
+
+// Listener und Start-Aufrufe nach erfolgreicher DB-Initialisierung
+pruefeBenachrichtigungen();
+pruefeDevModus();
 zeichne();
 </script>
 </body>
