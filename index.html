@@ -410,6 +410,13 @@ footer a:hover {
       <h2 style="margin: 0;">Eingegangene Feedbacks</h2>
       <button class="modal-btn secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="schliesseFeedbackListe()">✕</button>
     </div>
+
+    <!-- Sub-Tabs für Offene vs. Gefixte Feedbacks -->
+    <div class="tab-container" role="tablist" style="margin-bottom: 16px;">
+      <button class="tab-btn active" id="dev-tab-offen" onclick="setDevTab('offen')">Offen</button>
+      <button class="tab-btn" id="dev-tab-fixed" onclick="setDevTab('gefuext')">Gefixt</button>
+    </div>
+
     <ul id="dev-feedback-liste" style="max-height: 400px; overflow-y: auto; display: grid; gap: 10px; padding-right: 4px;"></ul>
   </div>
 </div>
@@ -527,6 +534,7 @@ let zielUrl = "";
 let zielId = "";
 let aktivesFeedbackSpiel = null;
 let alleFeedbacksCache = [];
+let aktivesDevTab = "offen"; // "offen" oder "gefuext"
 
 function starteLinkAufruf(e, item) {
   e.preventDefault();
@@ -641,20 +649,37 @@ function markiereAlsFixed(fb) {
   });
 }
 
+function setDevTab(tab) {
+  aktivesDevTab = tab;
+  document.getElementById("dev-tab-offen").classList.toggle("active", tab === "offen");
+  document.getElementById("dev-tab-fixed").classList.toggle("active", tab === "gefuext");
+  oeffneFeedbackListe();
+}
+
 function oeffneFeedbackListe() {
   const listeEl = document.getElementById("dev-feedback-liste");
   listeEl.textContent = "";
 
-  if (alleFeedbacksCache.length === 0) {
+  // Filtern nach Status entsprechend des aktiven Dev-Tabs
+  const gefilterteFeedbacks = alleFeedbacksCache.filter(fb => {
+    const status = fb.status || "offen";
+    if (aktivesDevTab === "offen") {
+      return status !== "gefuext";
+    } else {
+      return status === "gefuext";
+    }
+  });
+
+  if (gefilterteFeedbacks.length === 0) {
     const li = document.createElement("li");
     li.style.padding = "14px";
     li.style.background = "var(--bg)";
     li.style.color = "var(--muted)";
     li.style.textAlign = "center";
-    li.textContent = "Keine Feedbacks vorhanden.";
+    li.textContent = aktivesDevTab === "offen" ? "Keine offenen Feedbacks vorhanden." : "Keine gefixten Feedbacks vorhanden.";
     listeEl.append(li);
   } else {
-    alleFeedbacksCache.forEach(fb => {
+    gefilterteFeedbacks.forEach(fb => {
       const li = document.createElement("li");
       li.style.display = "flex";
       li.style.flexDirection = "column";
@@ -766,13 +791,12 @@ const SEITEN = [
     infoText: "Achtung: Alle Inhalte auf dieser Website sind öffentlich einsehbar und nicht privat!",
     feedbackErlaubt: true
   },
-  // altes bild = https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTD_funnaBtOevhYKQY0RKC0b7S52W2sycNQ-Hrxzb5xw&s=10
   { 
     id: "flight_simulator",     
     kategorie: "games",  
     name: "Flight Simulator",     
     url: "https://rd-glitchedguy.github.io/Flight-sim/",                
-    bild: "Flight_Simulator.jpg",
+    bild: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTD_funnaBtOevhYKQY0RKC0b7S52W2sycNQ-Hrxzb5xw&s=10",
     zeigeInfo: false,
     feedbackErlaubt: true
   },
@@ -793,16 +817,7 @@ const SEITEN = [
     bild: "Pizza.png",
     zeigeInfo: false,
     feedbackErlaubt: true
-  }, 
-  { 
-    id: "snake",            
-    kategorie: "games",  
-    name: "Snake",            
-    url: "https://tewe444.github.io/Snake/",                        
-    bild: "Snake.png",
-    zeigeInfo: false,
-    feedbackErlaubt: true
-  },
+  },  
   
   // --- NÜTZLICHE WEBSEITEN ---
   { 
@@ -830,6 +845,15 @@ const SEITEN = [
     name: "Glücksrad",            
     url: "https://tewe444.github.io/Gl-cksrad/",                                       
     bild: "Glücksrad.png",
+    zeigeInfo: false,
+    feedbackErlaubt: true
+  },
+  {
+    id: "snake",            
+    kategorie: "games",  
+    name: "Snake",            
+    url: "https://tewe444.github.io/Snake/",                        
+    bild: "Snake.png",
     zeigeInfo: false,
     feedbackErlaubt: true
   }
@@ -1224,9 +1248,33 @@ db.collection("stats").onSnapshot((snapshot) => {
 
 db.collection("feedback").orderBy("zeitpunkt", "desc").onSnapshot((snapshot) => {
   alleFeedbacksCache = [];
+  const dreiMonateMs = 90 * 24 * 60 * 60 * 1000; // Ungefähr 3 Monate
+  const jetzt = Date.now();
+
   snapshot.forEach((doc) => {
-    alleFeedbacksCache.push({ id: doc.id, ...doc.data() });
+    const data = doc.data();
+    let zeitpunktMs = jetzt;
+
+    if (data.zeitpunkt && typeof data.zeitpunkt.toMillis === 'function') {
+      zeitpunktMs = data.zeitpunkt.toMillis();
+    } else if (data.zeitpunkt && data.zeitpunkt.seconds) {
+      zeitpunktMs = data.zeitpunkt.seconds * 1000;
+    }
+
+    // Automatisch löschen, wenn älter als 3 Monate
+    if (jetzt - zeitpunktMs > dreiMonateMs) {
+      db.collection("feedback").doc(doc.id).delete().catch((err) => {
+        console.error("Fehler beim automatischen Löschen veralteter Feedbacks: ", err);
+      });
+    } else {
+      alleFeedbacksCache.push({ id: doc.id, ...data });
+    }
   });
+
+  // Falls das Feedback-Modal aktuell geöffnet ist, Ansicht aktualisieren
+  if (!document.getElementById("dev-feedback-modal").classList.contains("hidden")) {
+    oeffneFeedbackListe();
+  }
 });
 
 // Listener und Start-Aufrufe nach erfolgreicher DB-Initialisierung
