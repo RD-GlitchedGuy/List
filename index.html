@@ -512,7 +512,6 @@ function setCookie(name, value, hours) {
   document.cookie = name + "=" + (value || "") + expires + "; path=/";
 }
 
-// Hilfsfunktion für unendliche/langjährige Cookies (z.B. 10 Jahre = 87600 Stunden)
 function setLongTermCookie(name, value) {
   setCookie(name, value, 876000);
 }
@@ -685,6 +684,8 @@ function sendeFeedback() {
 function loescheFeedback(id) {
   if (confirm("Möchtest du dieses Feedback wirklich löschen?")) {
     db.collection("feedback").doc(id).delete().then(() => {
+      // Direkt im lokalen Cache aktualisieren und Ansicht neu laden
+      alleFeedbacksCache = alleFeedbacksCache.filter(fb => fb.id !== id);
       oeffneFeedbackListe();
     }).catch((error) => {
       console.error("Fehler beim Löschen: ", error);
@@ -707,6 +708,14 @@ function markiereAlsFixed(fb) {
   }
 
   db.collection("feedback").doc(fb.id).update(updateData).then(() => {
+    // Direkt im lokalen Cache auf "gefuext" setzen und Ansicht sofort aktualisieren
+    const target = alleFeedbacksCache.find(item => item.id === fb.id);
+    if (target) {
+      target.status = "gefuext";
+      if (devKommentarClean !== "") {
+        target.devKommentar = devKommentarClean;
+      }
+    }
     oeffneFeedbackListe();
   }).catch((error) => {
     console.error("Fehler beim Aktualisieren: ", error);
@@ -1106,7 +1115,6 @@ function zeichneStats() {
   if (aktiveKategorie === "games") {
     const btnWochenstatus = document.createElement("button");
     btnWochenstatus.className = "modal-btn primary";
-    btnWoutertitelStyle = "width: 100%; margin-top: 16px;";
     btnWochenstatus.style.width = "100%";
     btnWochenstatus.style.marginTop = "16px";
     btnWochenstatus.textContent = "Wochenstatus ";
@@ -1361,7 +1369,7 @@ db.collection("stats").onSnapshot((snapshot) => {
   zeichne();
 });
 
-// Einmaliges Laden der Feedbacks beim Start (kein Echtzeit-onSnapshot mehr für User)
+// Einmaliges Laden der Feedbacks beim Start
 db.collection("feedback").orderBy("zeitpunkt", "desc").get().then((snapshot) => {
   alleFeedbacksCache = [];
   const dreiMonateMs = 90 * 24 * 60 * 60 * 1000;
