@@ -241,8 +241,19 @@ li:hover .ico img {
 .item-actions {
   display: flex;
   align-items: center;
+  gap: 8px;
   padding-right: 14px;
 }
+.menu-wrap{position:relative}
+.menu-pop{position:fixed;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px;z-index:2000;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transform:translateY(-8px);pointer-events:none;visibility:hidden;transition:opacity .18s,transform .18s,visibility .18s}
+.menu-pop.open{opacity:1;transform:translateY(0);pointer-events:auto;visibility:visible}
+.menu-pop button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--ink);padding:10px 12px;border-radius:6px;cursor:pointer;font:inherit;font-size:.9rem}
+.menu-pop button:hover{background:var(--line)}
+.modal-card p,.modal-card span,#bug-fix-kommentar,#bug-fix-text{overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap}
+.clamp3{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.status-item{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:grid;gap:4px;font-size:.92rem}
+.status-item small{color:var(--muted)}
+.status-h{font-size:.85rem;font-weight:700;color:var(--accent);margin:14px 0 8px}
 /* Kleiner runder Feedback-Button mit grauem Logo */
 .feedback-btn {
   width: 36px;
@@ -428,11 +439,37 @@ footer a:hover {
     <p id="bug-fix-text" style="font-size: 1.1rem; margin-bottom: 12px;"></p>
     <div id="bug-fix-kommentar-container" style="display: none; margin-bottom: 24px; text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px;">
       <span style="display: block; font-size: 0.8rem; color: var(--accent); font-weight: 700; margin-bottom: 4px;">Kommentar von Entwickler:</span>
-      <span id="bug-fix-kommentar" style="font-size: 0.95rem; color: var(--ink);"></span>
+      <div id="bug-fix-kommentar" style="font-size: 0.95rem; color: var(--ink);"></div>
+      <button id="bug-fix-mehr" style="display:none;background:none;border:none;padding:2px 0;margin-top:4px;color:#4da3ff;cursor:pointer;font:inherit;font-size:.85rem;text-shadow:0 0 8px rgba(77,163,255,.6)" onclick="toggleBugFixMehr()">Mehr anzeigen</button>
     </div>
     <div class="modal-buttons">
-      <button class="modal-btn primary" onclick="schliesseBugFixModal()">Verstanden</button>
+      <button class="modal-btn primary" onclick="schliesseBugFixModal()">OK</button>
     </div>
+  </div>
+</div>
+
+<!-- DEV: BUG GEFIXT MODAL -->
+<div id="dev-fix-modal" class="modal-overlay hidden">
+  <div class="modal-card" style="text-align: left;">
+    <h2>Bug ist gefixt</h2>
+    <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 4px;">Antwort auf den Bug (optional)</label>
+    <textarea id="dev-fix-text" class="form-input" rows="4" style="width:100%;box-sizing:border-box;" placeholder="Kommentar..."></textarea>
+    <div class="modal-buttons">
+      <button class="modal-btn secondary" onclick="schliesseFixModal()">Abbrechen</button>
+      <button class="modal-btn primary" onclick="bestaetigeFix()">Senden</button>
+    </div>
+  </div>
+</div>
+
+<!-- BUG-STATUS MODAL -->
+<div id="status-modal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width: 560px; text-align: left;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2 id="status-titel" style="margin: 0;">Bug-Status</h2>
+      <button class="modal-btn secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="schliesseStatus()">✕</button>
+    </div>
+    <p id="status-version" style="color: var(--muted); margin: 6px 0 0; font-size: 0.9rem;"></p>
+    <div id="status-inhalt" style="max-height: 400px; overflow-y: auto; padding-right: 4px;"></div>
   </div>
 </div>
 
@@ -530,6 +567,31 @@ function getCookie(name) {
 function deleteCookie(name) {
   document.cookie = name + '=; max-age=0; path=/;';
 }
+
+const FB_KEY = "feedback_ids";
+function getAllFeedbackIds() {
+  try { return JSON.parse(localStorage.getItem(FB_KEY)) || []; } catch (e) { return []; }
+}
+function addFeedbackId(id) {
+  const ids = getAllFeedbackIds();
+  if (!ids.includes(id)) ids.push(id);
+  localStorage.setItem(FB_KEY, JSON.stringify(ids));
+}
+function removeFeedbackId(id) {
+  localStorage.setItem(FB_KEY, JSON.stringify(getAllFeedbackIds().filter(x => x !== id)));
+}
+// Alte Cookie-IDs einmalig nach localStorage übernehmen
+function migriereFeedbackCookies() {
+  getAllFeedbackCookieIds().forEach(id => { addFeedbackId(id); deleteCookie("feedback_id_" + id); });
+}
+
+/* Versionen der Spiele (hier anpassen) */
+const GAME_VERSIONEN = {
+  ffa_shooter: "1.0.0",
+  flight_simulator: "1.0.0",
+  ballman: "1.0.0"
+};
+function getVersion(id) { return GAME_VERSIONEN[id] || "1.0.0"; }
 
 function getAllFeedbackCookieIds() {
   const cookies = document.cookie.split(';');
@@ -672,7 +734,7 @@ function sendeFeedback() {
     zeitpunkt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(() => {
     localStorage.setItem("letztes_feedback_zeit", now);
-    setCookie("feedback_id_" + feedbackId, "true", 12);
+    addFeedbackId(feedbackId);
     alert("Vielen Dank! Dein Feedback wurde erfolgreich gespeichert.");
     schliesseFeedbackModal();
   }).catch((error) => {
@@ -693,32 +755,39 @@ function loescheFeedback(id) {
   }
 }
 
+let aktuellerFixFb = null;
+
 function markiereAlsFixed(fb) {
-  const devKommentarInput = prompt("Möchtest du ein Kommentar dazu schreiben? (Optional):");
-  
-  if (devKommentarInput === null) return;
+  aktuellerFixFb = fb;
+  document.getElementById("dev-fix-text").value = "";
+  document.getElementById("dev-fix-modal").classList.remove("hidden");
+}
 
-  const updateData = {
-    status: "gefuext"
-  };
+function schliesseFixModal() {
+  document.getElementById("dev-fix-modal").classList.add("hidden");
+  aktuellerFixFb = null;
+}
 
-  const devKommentarClean = devKommentarInput.trim();
-  if (devKommentarClean !== "") {
-    updateData.devKommentar = devKommentarClean;
-  }
+function bestaetigeFix() {
+  const fb = aktuellerFixFb;
+  if (!fb) return;
+  const devKommentarClean = document.getElementById("dev-fix-text").value.trim();
+  schliesseFixModal();
 
+  const updateData = { status: "gefuext" };
+  if (devKommentarClean !== "") updateData.devKommentar = devKommentarClean;
+
+  // Entwickler-Antwort nur im Feedback speichern. In den Changelog kommt es erst, wenn der User die Info erhalten hat.
   db.collection("feedback").doc(fb.id).update(updateData).then(() => {
-    // Direkt im lokalen Cache auf "gefuext" setzen und Ansicht sofort aktualisieren
     const target = alleFeedbacksCache.find(item => item.id === fb.id);
     if (target) {
       target.status = "gefuext";
-      if (devKommentarClean !== "") {
-        target.devKommentar = devKommentarClean;
-      }
+      if (devKommentarClean !== "") target.devKommentar = devKommentarClean;
     }
     oeffneFeedbackListe();
   }).catch((error) => {
     console.error("Fehler beim Aktualisieren: ", error);
+    alert("Fehler beim Speichern des Fixes (" + (error.code || error.message) + ").");
   });
 }
 
@@ -733,6 +802,7 @@ function oeffneFeedbackListe() {
   const listeEl = document.getElementById("dev-feedback-liste");
   listeEl.textContent = "";
 
+  const mehrPruefer = [];
   const gefilterteFeedbacks = alleFeedbacksCache.filter(fb => {
     const status = fb.status || "offen";
     if (aktivesDevTab === "offen") {
@@ -779,9 +849,24 @@ function oeffneFeedbackListe() {
 
       const textP = document.createElement("p");
       textP.style.margin = "0";
+      textP.style.overflowWrap = "anywhere";
+      textP.style.whiteSpace = "pre-wrap";
       textP.style.fontSize = "0.95rem";
       textP.style.color = "var(--ink)";
       textP.textContent = fb.text;
+      textP.classList.add("clamp3");
+      textP.style.wordBreak = "break-word";
+
+      const mehrBtn = document.createElement("button");
+      mehrBtn.textContent = "Mehr anzeigen";
+      mehrBtn.style.cssText = "display:none;align-self:flex-start;background:none;border:none;padding:0;color:#4da3ff;cursor:pointer;font:inherit;font-size:.85rem;text-shadow:0 0 8px rgba(77,163,255,.6)";
+      mehrBtn.onclick = () => {
+        const zu = textP.classList.toggle("clamp3");
+        mehrBtn.textContent = zu ? "Mehr anzeigen" : "Weniger anzeigen";
+      };
+      mehrPruefer.push(() => {
+        if (textP.scrollHeight > textP.clientHeight + 1) mehrBtn.style.display = "block";
+      });
 
       const btnDiv = document.createElement("div");
       btnDiv.style.display = "flex";
@@ -807,62 +892,194 @@ function oeffneFeedbackListe() {
         btnDiv.append(fixBtn);
       }
 
-      li.append(headerDiv, textP, btnDiv);
+      li.append(headerDiv, textP, mehrBtn, btnDiv);
       listeEl.append(li);
     });
   }
 
   document.getElementById("dev-feedback-modal").classList.remove("hidden");
+  mehrPruefer.forEach(fn => fn());
 }
 
 function schliesseFeedbackListe() {
   document.getElementById("dev-feedback-modal").classList.add("hidden");
 }
 
+let gefixtQueue = [];
+
 function pruefeBenachrichtigungen() {
-  const cookieIds = getAllFeedbackCookieIds();
-  if (cookieIds.length === 0) return;
+  migriereFeedbackCookies();
+  const ids = getAllFeedbackIds();
+  if (ids.length === 0) return;
 
-  cookieIds.forEach(fbId => {
-    db.collection("feedback").doc(fbId).get().then((doc) => {
-      if (doc.exists) {
-        const data = doc.data();
-        if (data.status === "gefuext") {
-          aktuellesBugFixFeedbackId = fbId;
-          document.getElementById("bug-fix-text").textContent = `Dein Bug, den du gefunden hast, wurde gefixt.`;
-          
-          const kommentarBox = document.getElementById("bug-fix-kommentar-container");
-          const kommentarTxt = document.getElementById("bug-fix-kommentar");
-          if (data.devKommentar && data.devKommentar.trim() !== "") {
-            kommentarTxt.textContent = data.devKommentar;
-            kommentarBox.style.display = "block";
-          } else {
-            kommentarBox.style.display = "none";
-          }
-
-          document.getElementById("bug-fix-modal").classList.remove("hidden");
-        }
-      } else {
-        deleteCookie("feedback_id_" + fbId);
-      }
-    }).catch((err) => {
-      console.error(err);
+  Promise.all(ids.map(fbId =>
+    db.collection("feedback").doc(fbId).get().then(doc => {
+      if (!doc.exists) { removeFeedbackId(fbId); return null; }
+      const data = doc.data();
+      return data.status === "gefuext" ? { id: fbId, data } : null;
+    }).catch(err => { console.error(err); return null; })
+  )).then(res => {
+    gefixtQueue = res.filter(Boolean);
+    // Erst Kopie in "Changelog", dann (nur nach Erfolg) genau dieses eine Feedback-Dokument löschen
+    gefixtQueue.forEach(({ id, data }) => {
+      // Nur das eigene Feedback dieses Users (passender Token) wird kopiert und gelöscht
+      if (data.userToken && data.userToken !== id) return;
+      db.collection("Changelog").doc(id).set({
+        userToken: id,
+        spielId: data.spielId || "",
+        spielName: data.spielName || "",
+        text: data.text || "",
+        devKommentar: data.devKommentar || "",
+        version: getVersion(data.spielId),
+        zeitpunkt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        return db.collection("feedback").doc(id).delete();
+      }).then(() => {
+        removeFeedbackId(id);
+        alleFeedbacksCache = alleFeedbacksCache.filter(fb => fb.id !== id);
+      }).catch(err => console.error("Fehler beim Übernehmen in den Changelog: ", err));
     });
+    zeigeNaechstesGefixt();
   });
 }
 
+function toggleBugFixMehr() {
+  const t = document.getElementById("bug-fix-kommentar");
+  const b = document.getElementById("bug-fix-mehr");
+  const offen = t.classList.toggle("clamp3");
+  b.textContent = offen ? "Mehr anzeigen" : "Weniger anzeigen";
+}
+
+function zeigeNaechstesGefixt() {
+  const next = gefixtQueue.shift();
+  if (!next) return;
+  aktuellesBugFixFeedbackId = next.id;
+  const data = next.data;
+  document.getElementById("bug-fix-text").textContent =
+    `Dein Feedback zu "${data.spielName || "einem Spiel"}" wurde gefixt.`;
+
+  const kommentarBox = document.getElementById("bug-fix-kommentar-container");
+  const kommentarTxt = document.getElementById("bug-fix-kommentar");
+  if (data.devKommentar && data.devKommentar.trim() !== "") {
+    kommentarTxt.textContent = data.devKommentar;
+    kommentarBox.style.display = "block";
+    kommentarTxt.classList.add("clamp3");
+    const mehrBtn = document.getElementById("bug-fix-mehr");
+    mehrBtn.textContent = "Mehr anzeigen";
+    mehrBtn.style.display = "none";
+    document.getElementById("bug-fix-modal").classList.remove("hidden");
+    if (kommentarTxt.scrollHeight > kommentarTxt.clientHeight + 1) mehrBtn.style.display = "block";
+  } else {
+    kommentarBox.style.display = "none";
+  }
+  document.getElementById("bug-fix-modal").classList.remove("hidden");
+}
+
+// OK: Meldung schließen (gelöscht wurde das Feedback schon beim Ankommen)
 function schliesseBugFixModal() {
   document.getElementById("bug-fix-modal").classList.add("hidden");
-  if (aktuellesBugFixFeedbackId) {
-    const idToClean = aktuellesBugFixFeedbackId;
-    aktuellesBugFixFeedbackId = null;
-    db.collection("feedback").doc(idToClean).delete().then(() => {
-      deleteCookie("feedback_id_" + idToClean);
-    }).catch((err) => {
-      console.error("Fehler beim Entfernen des gefixten Feedbacks: ", err);
-      deleteCookie("feedback_id_" + idToClean);
+  aktuellesBugFixFeedbackId = null;
+  zeigeNaechstesGefixt();
+}
+
+/* ============================================================
+   BUG-STATUS (links neben dem Feedback-Button)
+   ============================================================ */
+/* Ein globales Menü direkt im <body> (außerhalb der Liste, sonst wird es abgeschnitten) */
+const aktionsMenue = document.createElement("div");
+aktionsMenue.className = "menu-pop";
+const menuOptFb = document.createElement("button");
+menuOptFb.textContent = "💬 Feedback";
+const menuOptCl = document.createElement("button");
+menuOptCl.textContent = "📋 Changelog";
+aktionsMenue.append(menuOptFb, menuOptCl);
+document.body.append(aktionsMenue);
+aktionsMenue.addEventListener("click", (e) => e.stopPropagation());
+
+let menueButton = null;
+function schliesseMenues() {
+  aktionsMenue.classList.remove("open");
+  menueButton = null;
+}
+function oeffneAktionsMenue(btn, item) {
+  if (menueButton === btn) { schliesseMenues(); return; }
+  menueButton = btn;
+  const r = btn.getBoundingClientRect();
+  aktionsMenue.style.top = (r.bottom + 6) + "px";
+  aktionsMenue.style.left = Math.max(8, r.right - 150) + "px";
+  menuOptFb.onclick = () => { schliesseMenues(); oeffneFeedbackModal(item); };
+  menuOptCl.onclick = () => { schliesseMenues(); oeffneStatus(item); };
+  aktionsMenue.classList.add("open");
+}
+document.addEventListener("click", schliesseMenues);
+window.addEventListener("scroll", schliesseMenues, true);
+
+function oeffneStatus(item) {
+  document.getElementById("status-titel").textContent = `Changelog: ${item.name}`;
+  document.getElementById("status-version").textContent = `Aktuelle Bugs`;
+  const box = document.getElementById("status-inhalt");
+  box.textContent = "Lade...";
+  document.getElementById("status-modal").classList.remove("hidden");
+
+  db.collection("Changelog").where("spielId", "==", item.id).get().then(snap => {
+    const eintraege = [];
+    snap.forEach(d => eintraege.push(d.data()));
+    eintraege.sort((x, y) => ((y.zeitpunkt && y.zeitpunkt.seconds) || 0) - ((x.zeitpunkt && x.zeitpunkt.seconds) || 0));
+
+    box.textContent = "";
+    if (eintraege.length === 0) {
+      const p = document.createElement("p");
+      p.style.color = "var(--muted)";
+      p.textContent = "Noch keine gefixten Bugs.";
+      box.append(p);
+      return;
+    }
+    const clamp = "display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;";
+    const pruefer = [];
+
+    function baueZeile(label, text, farbe) {
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "margin-top:6px;font-size:.92rem;word-break:break-word;" + (farbe ? "color:" + farbe + ";" : "");
+      const t = document.createElement("div");
+      t.style.cssText = clamp + "white-space:pre-wrap;";
+      t.textContent = label + ": " + text;
+      const mehr = document.createElement("button");
+      mehr.textContent = "Mehr anzeigen";
+      mehr.style.cssText = "display:none;background:none;border:none;padding:2px 0;margin-top:2px;color:#4da3ff;cursor:pointer;font:inherit;font-size:.85rem;text-shadow:0 0 8px rgba(77,163,255,.6)";
+      let offen = false;
+      mehr.onclick = () => {
+        offen = !offen;
+        t.style.cssText = (offen ? "" : clamp) + "white-space:pre-wrap;";
+        mehr.textContent = offen ? "Weniger anzeigen" : "Mehr anzeigen";
+      };
+      wrap.append(t, mehr);
+      pruefer.push(() => { if (t.scrollHeight > t.clientHeight + 1) mehr.style.display = "block"; });
+      return wrap;
+    }
+
+    eintraege.forEach((e, i) => {
+      const div = document.createElement("div");
+      div.style.cssText = "padding:14px 0;" + (i > 0 ? "border-top:1px solid var(--line);" : "");
+
+      const titel = document.createElement("div");
+      titel.style.fontWeight = "700";
+      titel.textContent = "Bug";
+      div.append(titel, baueZeile("Report", e.text || ""));
+
+      if (e.devKommentar) {
+        div.append(baueZeile("Antwort auf den Bug", e.devKommentar, "var(--accent)"));
+      }
+      box.append(div);
     });
-  }
+    pruefer.forEach(fn => fn());
+  }).catch(err => {
+    console.error(err);
+    box.textContent = "Changelog konnte nicht geladen werden.";
+  });
+}
+
+function schliesseStatus() {
+  document.getElementById("status-modal").classList.add("hidden");
 }
 
 /* ============================================================
@@ -1351,16 +1568,17 @@ function zeichne() {
     const feedbackErlaubt = s.feedbackErlaubt !== false;
 
     if (feedbackErlaubt) {
-      const feedbackBtn = document.createElement("button");
-      feedbackBtn.className = "feedback-btn";
-      feedbackBtn.title = "Feedback geben";
-      feedbackBtn.innerHTML = "💬";
-      feedbackBtn.onclick = (e) => {
+      const menuBtn = document.createElement("button");
+      menuBtn.className = "feedback-btn";
+      menuBtn.title = "Feedback / Changelog";
+      menuBtn.textContent = "⋮";
+      menuBtn.style.fontSize = "1.2rem";
+      menuBtn.onclick = (e) => {
         e.stopPropagation();
         e.preventDefault();
-        oeffneFeedbackModal(s);
+        oeffneAktionsMenue(menuBtn, s);
       };
-      actionDiv.append(feedbackBtn);
+      actionDiv.append(menuBtn);
     }
 
     li.append(a, actionDiv);
