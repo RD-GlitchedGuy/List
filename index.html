@@ -425,7 +425,11 @@ footer a:hover {
 <div id="bug-fix-modal" class="modal-overlay hidden">
   <div class="modal-card">
     <h2>Meldung vom Entwickler</h2>
-    <p id="bug-fix-text" style="font-size: 1.1rem; margin-bottom: 24px;"></p>
+    <p id="bug-fix-text" style="font-size: 1.1rem; margin-bottom: 12px;"></p>
+    <div id="bug-fix-kommentar-container" style="display: none; margin-bottom: 24px; text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px;">
+      <span style="display: block; font-size: 0.8rem; color: var(--accent); font-weight: 700; margin-bottom: 4px;">Kommentar von Entwickler:</span>
+      <span id="bug-fix-kommentar" style="font-size: 0.95rem; color: var(--ink);"></span>
+    </div>
     <div class="modal-buttons">
       <button class="modal-btn primary" onclick="schliesseBugFixModal()">Verstanden</button>
     </div>
@@ -496,6 +500,54 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 /* ============================================================
+   COOKIE HELPER FUNKTIONEN
+   ============================================================ */
+function setCookie(name, value, hours) {
+  let expires = "";
+  if (hours) {
+    const date = new Date();
+    date.setTime(date.getTime() + (hours * 60 * 60 * 1000));
+    expires = "; expires=" + date.toUTCString();
+  }
+  document.cookie = name + "=" + (value || "") + expires + "; path=/";
+}
+
+// Hilfsfunktion für unendliche/langjährige Cookies (z.B. 10 Jahre = 87600 Stunden)
+function setLongTermCookie(name, value) {
+  setCookie(name, value, 876000);
+}
+
+function getCookie(name) {
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(';');
+  for(let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+  }
+  return null;
+}
+
+function deleteCookie(name) {
+  document.cookie = name + '=; max-age=0; path=/;';
+}
+
+function getAllFeedbackCookieIds() {
+  const cookies = document.cookie.split(';');
+  const ids = [];
+  cookies.forEach(c => {
+    const trimmed = c.trim();
+    if (trimmed.startsWith("feedback_id_")) {
+      const parts = trimmed.split("=");
+      const key = parts[0];
+      const id = key.replace("feedback_id_", "");
+      if (id) ids.push(id);
+    }
+  });
+  return ids;
+}
+
+/* ============================================================
    TOAST POPUP FUNKTION (RECHTS UNTEN, ROT)
    ============================================================ */
 function zeigeToast(text) {
@@ -523,6 +575,7 @@ function hatDevCookie() {
 
 function pruefeDevModus() {
   if (hatDevCookie()) {
+    setLongTermCookie("dev_mode", "true");
     document.getElementById("dev-bar").style.display = "block";
   }
 }
@@ -535,6 +588,7 @@ let zielId = "";
 let aktivesFeedbackSpiel = null;
 let alleFeedbacksCache = [];
 let aktivesDevTab = "offen"; // "offen" oder "gefuext"
+let aktuellesBugFixFeedbackId = null;
 
 function starteLinkAufruf(e, item) {
   e.preventDefault();
@@ -581,7 +635,7 @@ function oeffneFeedbackModal(item) {
 
   if (letztesFeedbackZeit) {
     const diffSeitLetztem = now - parseInt(letztesFeedbackZeit);
-    if (diffSeitLetztem < 5 * 60 * 1000) {
+    if (diffSeitLetztem < 12 * 60 * 60 * 1000) {
       zeigeToast("Sorry es gibt ein cooldow versuche es morgen noch mal");
       return;
     }
@@ -619,8 +673,7 @@ function sendeFeedback() {
     zeitpunkt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(() => {
     localStorage.setItem("letztes_feedback_zeit", now);
-    localStorage.setItem("mein_feedback_token", feedbackId);
-    localStorage.setItem("mein_spiel_name", aktivesFeedbackSpiel.name);
+    setCookie("feedback_id_" + feedbackId, "true", 12);
     alert("Vielen Dank! Dein Feedback wurde erfolgreich gespeichert.");
     schliesseFeedbackModal();
   }).catch((error) => {
@@ -640,9 +693,20 @@ function loescheFeedback(id) {
 }
 
 function markiereAlsFixed(fb) {
-  db.collection("feedback").doc(fb.id).update({
+  const devKommentarInput = prompt("Möchtest du ein Kommentar dazu schreiben? (Optional):");
+  
+  if (devKommentarInput === null) return;
+
+  const updateData = {
     status: "gefuext"
-  }).then(() => {
+  };
+
+  const devKommentarClean = devKommentarInput.trim();
+  if (devKommentarClean !== "") {
+    updateData.devKommentar = devKommentarClean;
+  }
+
+  db.collection("feedback").doc(fb.id).update(updateData).then(() => {
     oeffneFeedbackListe();
   }).catch((error) => {
     console.error("Fehler beim Aktualisieren: ", error);
@@ -660,7 +724,6 @@ function oeffneFeedbackListe() {
   const listeEl = document.getElementById("dev-feedback-liste");
   listeEl.textContent = "";
 
-  // Filtern nach Status entsprechend des aktiven Dev-Tabs
   const gefilterteFeedbacks = alleFeedbacksCache.filter(fb => {
     const status = fb.status || "offen";
     if (aktivesDevTab === "offen") {
@@ -748,32 +811,49 @@ function schliesseFeedbackListe() {
 }
 
 function pruefeBenachrichtigungen() {
-  const meinToken = localStorage.getItem("mein_feedback_token");
-  const spielName = localStorage.getItem("mein_spiel_name") || "dem Spiel";
-  if (!meinToken) return;
+  const cookieIds = getAllFeedbackCookieIds();
+  if (cookieIds.length === 0) return;
 
-  db.collection("feedback").doc(meinToken).get().then((doc) => {
-    if (doc.exists) {
-      const data = doc.data();
-      if (data.status === "gefuext") {
-        document.getElementById("bug-fix-text").textContent = `Dein Bug den du gefunden hast bei ${data.spielName || spielName} wurde gefixt`;
-        document.getElementById("bug-fix-modal").classList.remove("hidden");
-        
-        db.collection("feedback").doc(meinToken).delete().then(() => {
-          localStorage.removeItem("mein_feedback_token");
-          localStorage.removeItem("mein_spiel_name");
-        });
+  cookieIds.forEach(fbId => {
+    db.collection("feedback").doc(fbId).get().then((doc) => {
+      if (doc.exists) {
+        const data = doc.data();
+        if (data.status === "gefuext") {
+          aktuellesBugFixFeedbackId = fbId;
+          document.getElementById("bug-fix-text").textContent = `Dein Bug, den du gefunden hast, wurde gefixt.`;
+          
+          const kommentarBox = document.getElementById("bug-fix-kommentar-container");
+          const kommentarTxt = document.getElementById("bug-fix-kommentar");
+          if (data.devKommentar && data.devKommentar.trim() !== "") {
+            kommentarTxt.textContent = data.devKommentar;
+            kommentarBox.style.display = "block";
+          } else {
+            kommentarBox.style.display = "none";
+          }
+
+          document.getElementById("bug-fix-modal").classList.remove("hidden");
+        }
+      } else {
+        deleteCookie("feedback_id_" + fbId);
       }
-    } else {
-      localStorage.removeItem("mein_feedback_token");
-    }
-  }).catch((err) => {
-    console.error(err);
+    }).catch((err) => {
+      console.error(err);
+    });
   });
 }
 
 function schliesseBugFixModal() {
   document.getElementById("bug-fix-modal").classList.add("hidden");
+  if (aktuellesBugFixFeedbackId) {
+    const idToClean = aktuellesBugFixFeedbackId;
+    aktuellesBugFixFeedbackId = null;
+    db.collection("feedback").doc(idToClean).delete().then(() => {
+      deleteCookie("feedback_id_" + idToClean);
+    }).catch((err) => {
+      console.error("Fehler beim Entfernen des gefixten Feedbacks: ", err);
+      deleteCookie("feedback_id_" + idToClean);
+    });
+  }
 }
 
 /* ============================================================
@@ -1026,6 +1106,7 @@ function zeichneStats() {
   if (aktiveKategorie === "games") {
     const btnWochenstatus = document.createElement("button");
     btnWochenstatus.className = "modal-btn primary";
+    btnWoutertitelStyle = "width: 100%; margin-top: 16px;";
     btnWochenstatus.style.width = "100%";
     btnWochenstatus.style.marginTop = "16px";
     btnWochenstatus.textContent = "Wochenstatus ";
@@ -1280,9 +1361,10 @@ db.collection("stats").onSnapshot((snapshot) => {
   zeichne();
 });
 
-db.collection("feedback").orderBy("zeitpunkt", "desc").onSnapshot((snapshot) => {
+// Einmaliges Laden der Feedbacks beim Start (kein Echtzeit-onSnapshot mehr für User)
+db.collection("feedback").orderBy("zeitpunkt", "desc").get().then((snapshot) => {
   alleFeedbacksCache = [];
-  const dreiMonateMs = 90 * 24 * 60 * 60 * 1000; // Ungefähr 3 Monate
+  const dreiMonateMs = 90 * 24 * 60 * 60 * 1000;
   const jetzt = Date.now();
 
   snapshot.forEach((doc) => {
@@ -1295,7 +1377,6 @@ db.collection("feedback").orderBy("zeitpunkt", "desc").onSnapshot((snapshot) => 
       zeitpunktMs = data.zeitpunkt.seconds * 1000;
     }
 
-    // Automatisch löschen, wenn älter als 3 Monate
     if (jetzt - zeitpunktMs > dreiMonateMs) {
       db.collection("feedback").doc(doc.id).delete().catch((err) => {
         console.error("Fehler beim automatischen Löschen veralteter Feedbacks: ", err);
@@ -1305,14 +1386,16 @@ db.collection("feedback").orderBy("zeitpunkt", "desc").onSnapshot((snapshot) => 
     }
   });
 
-  // Falls das Feedback-Modal aktuell geöffnet ist, Ansicht aktualisieren
   if (!document.getElementById("dev-feedback-modal").classList.contains("hidden")) {
     oeffneFeedbackListe();
   }
+
+  pruefeBenachrichtigungen();
+}).catch((err) => {
+  console.error("Fehler beim Laden der Feedbacks: ", err);
 });
 
 // Listener und Start-Aufrufe nach erfolgreicher DB-Initialisierung
-pruefeBenachrichtigungen();
 pruefeDevModus();
 zeichne();
 </script>
