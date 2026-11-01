@@ -39,15 +39,7 @@ const BILDER_ORDNER = "bilder";
 const GITHUB_REPO = "";
 
 const SEITEN = [
-  // ======================== GAMES ========================
-//   {
-//    id: "SkyCraft",
-//    kategorie: "games",
-//    name: "SkyCraftBeata",
-//    ordner: "SkyCraftOpenBeta",
-//    bild: "",
-//    zeigeInfo: false
-//   }, 
+  // ======================== GAMES ======================== 
    {
     id: "ffa_shooter",
     kategorie: "games",
