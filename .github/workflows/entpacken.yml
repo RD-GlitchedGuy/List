@@ -1,0 +1,19 @@
+name: Entpacken
+on: push
+permissions:
+  contents: write
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          if ls *.zip 1>/dev/null 2>&1; then
+            unzip -o "*.zip"
+            rm -f *.zip
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add -A
+            git commit -m "Spiel entpackt"
+            git push
+          fi
