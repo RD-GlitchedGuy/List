@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Festlicher Event- & Feiertags-Countdown</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind-config.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="min-h-screen flex flex-col relative selection:bg-amber-500 selection:text-slate-950">
+
+    <!-- Dynamic Ambient Theme Glow Layer -->
+    <div id="theme-glow"></div>
+
+    <!-- Ambient Canvas Dynamic Particle Background -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- App Main Container -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+        
+        <!-- Header -->
+        <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight font-heading bg-gradient-to-r from-white via-slate-100 to-amber-300 bg-clip-text text-transparent">
+                        Event & Feiertag Countdown
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Inkl. eigener Geburtstage & gerätegebundener Account-Daten</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button onclick="openAddModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-2xl text-xs flex items-center space-x-2 transition-all shadow-lg shadow-amber-500/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        <span>Event hinzufügen</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
+            
+            <!-- Hero Featured Countdown (Nearest Event) -->
+            <section id="hero-section" class="w-full pt-16 sm:pt-24">
+                <!-- Injected & updated via JS -->
+            </section>
+
+            <!-- Controls & Filter Toolbar -->
+            <section class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 glass-panel p-5 rounded-3xl">
+                <!-- Category Tabs -->
+                <div class="flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0">
+                    <button onclick="setFilter('all')" id="btn-filter-all" class="filter-tab px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap bg-amber-500 text-slate-950 transition-all">
+                        Alle (<span id="count-all">0</span>)
+                    </button>
+                    <button onclick="setFilter('holiday')" id="btn-filter-holiday" class="filter-tab px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap text-slate-400 hover:text-white transition-all">
+                        Feiertage (<span id="count-holiday">0</span>)
+                    </button>
+                    <button onclick="setFilter('season')" id="btn-filter-season" class="filter-tab px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap text-slate-400 hover:text-white transition-all">
+                        Jahreszeiten (<span id="count-season">0</span>)
+                    </button>
+                    <button onclick="setFilter('custom')" id="btn-filter-custom" class="filter-tab px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap text-slate-400 hover:text-white transition-all">
+                        Eigene / Geburtstag (<span id="count-custom">0</span>)
+                    </button>
+                </div>
+
+                <!-- Search & Sort -->
+                <div class="flex items-center space-x-3">
+                    <div class="relative flex-grow sm:flex-grow-0 sm:w-64">
+                        <input type="text" id="search-input" oninput="handleSearch()" placeholder="Ereignis suchen..." class="w-full bg-slate-950/90 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors">
+                    </div>
+                    <select id="sort-select" onchange="handleSortChange()" class="bg-slate-950/90 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-amber-500 transition-colors">
+                        <option value="time">Nächste zuerst</option>
+                        <option value="name">Name A-Z</option>
+                        <option value="category">Kategorie</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Cards Grid -->
+            <section id="events-grid" class="grid grid-cols-1 gap-5">
+                <!-- Managed via JS DOM nodes -->
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-auto border-t border-slate-800/80 bg-slate-950/60 py-6 text-slate-500 text-xs">
+            <div class="max-w-7xl mx-auto px-4 text-center sm:flex sm:justify-between sm:text-left space-y-2 sm:space-y-0">
+                <p>&copy; Event & Feiertag Countdown (Account-gebunden via LocalStorage)</p>
+                <div class="flex items-center justify-center space-x-4">
+                    <button onclick="exportData()" class="hover:text-amber-400 transition-colors">Daten exportieren</button>
+                    <span>&bull;</span>
+                    <label class="hover:text-amber-400 transition-colors cursor-pointer">
+                        Daten importieren <input type="file" id="import-file" onchange="importData(event)" accept=".json" class="hidden">
+                    </label>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal: Event Hinzufügen -->
+    <div id="add-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-panel w-full max-w-lg rounded-3xl p-6 sm:p-8 space-y-6 border border-slate-700 shadow-2xl relative">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold font-heading text-white">Eigenes Event / Geburtstag eintragen</h3>
+                <button onclick="closeAddModal()" class="text-slate-400 hover:text-white p-1 rounded-xl bg-slate-900 border border-slate-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <form id="event-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Titel des Ereignisses (z.B. "Geburtstag Anna")</label>
+                    <input type="text" id="form-title" required placeholder="Name des Events..." class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Datum</label>
+                        <input type="date" id="form-date" required class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Kategorie</label>
+                        <select id="form-category" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+                            <option value="custom">Geburtstag / Persönlich</option>
+                            <option value="holiday">Feiertag</option>
+                            <option value="season">Jahreszeit / Sonstiges</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Uhrzeit (Optional)</label>
+                        <input type="time" id="form-time" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">Farbthema / Gradient</label>
+                        <select id="form-color" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+                            <option value="from-amber-600 via-rose-700 to-slate-900">Gold / Bernstein</option>
+                            <option value="from-emerald-700 via-teal-800 to-slate-950">Smaragdgrün</option>
+                            <option value="from-purple-700 via-indigo-800 to-slate-950">Violett / Indigo</option>
+                            <option value="from-sky-700 via-blue-800 to-slate-950">Himmelblau</option>
+                            <option value="from-pink-700 via-rose-800 to-slate-950">Pink / Romantik</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex justify-end space-x-3">
+                    <button type="button" onclick="closeAddModal()" class="px-5 py-2.5 rounded-2xl text-xs font-bold bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800">Abbrechen</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-2xl text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/20">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

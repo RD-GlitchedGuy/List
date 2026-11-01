@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smashball - Pro Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-white h-full flex flex-col items-center justify-center overflow-hidden p-2 sm:p-4">
+
+    <!-- Top Opponent Health Bar Container -->
+    <div class="w-full max-w-4xl px-2 mb-1">
+        <div class="text-xs sm:text-sm font-bold tracking-widest text-slate-400 arcade-font mb-1">
+            BOT
+        </div>
+        <div class="w-full h-3 sm:h-4 bg-slate-900 border border-slate-700 rounded-full overflow-hidden p-0.5">
+            <div id="opp-hp-bar" class="h-full bg-slate-400 rounded-full transition-all duration-300 w-full"></div>
+        </div>
+    </div>
+
+    <!-- Main Game Container -->
+    <div id="game-container" class="w-full max-w-4xl flex flex-col items-center justify-center bg-slate-900/40 border border-slate-800 rounded-2xl p-2 relative shadow-xl">
+        
+        <!-- Status Banner -->
+        <div class="w-full flex justify-center items-center my-1">
+            <div id="game-status-text" class="arcade-font text-xs sm:text-sm text-slate-300 text-center animate-pulse">BEREIT ZUM AUFSCHLAG</div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full aspect-[16/9] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-2xl">
+            <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+
+            <!-- Map & Start Overlay -->
+            <div id="menu-overlay" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-4 text-center z-30">
+                <h1 class="arcade-font text-3xl sm:text-5xl text-slate-200 mb-2">
+                    SMASHBALL
+                </h1>
+                <p class="text-slate-400 text-xs sm:text-sm mb-4">
+                    Bringe den Ball 2x auf der gegnerischen Seite auf den Boden.
+                </p>
+
+                <!-- Bot-Schwierigkeit Regler -->
+                <div class="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-xl p-4 mb-4 flex flex-col items-center select-none shadow-lg">
+                    <div class="flex justify-between items-center w-full mb-3 arcade-font text-xs text-slate-300">
+                        <span>BOT-STÄRKE:</span>
+                        <span id="bot-level-text" class="text-amber-400 font-bold text-sm bg-slate-800 px-3 py-1 rounded-md border border-slate-700">5 (Mittel)</span>
+                    </div>
+
+                    <!-- Clean Slider -->
+                    <input type="range" id="bot-level-slider" min="1" max="9" value="5" step="1" class="w-full h-3 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400 touch-pan-x my-2">
+
+                    <!-- Preset Buttons -->
+                    <div class="grid grid-cols-3 gap-2 w-full mt-2">
+                        <button id="bot-preset-1" class="bot-preset-btn bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 py-2 rounded-lg text-xs font-bold active:scale-95 transition">
+                            1 (Leicht)
+                        </button>
+                        <button id="bot-preset-5" class="bot-preset-btn bg-amber-500/20 border-2 border-amber-400 text-amber-300 py-2 rounded-lg text-xs font-bold active:scale-95 transition">
+                            5 (Mittel)
+                        </button>
+                        <button id="bot-preset-9" class="bot-preset-btn bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 py-2 rounded-lg text-xs font-bold active:scale-95 transition">
+                            9 (Profi)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Hauptmenü Play Button -->
+                <button id="start-game-btn" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black arcade-font text-base sm:text-lg px-10 py-4 rounded-xl shadow-lg hover:scale-105 active:scale-95 transition cursor-pointer select-none border-2 border-amber-200">
+                    SPIELEN
+                </button>
+            </div>
+
+            <!-- Stumble Guys Style Map Selection Overlay -->
+            <div id="map-roulette-overlay" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-40 hidden">
+                <div class="arcade-font text-xs sm:text-sm text-slate-400 mb-4 animate-pulse">WÄHLE ZUFÄLLIGE MAP...</div>
+                
+                <!-- Map Card Frame -->
+                <div id="roulette-card" class="w-64 sm:w-80 h-36 sm:h-44 rounded-2xl border-4 border-amber-400 flex flex-col items-center justify-center shadow-2xl transition-all duration-100 transform scale-100 bg-slate-900">
+                    <div id="roulette-map-name" class="arcade-font text-lg sm:text-xl font-bold text-white drop-shadow-md">
+                        BEACH PARADISE
+                    </div>
+                </div>
+            </div>
+
+            <!-- Point Scored Overlay (Zwischen-Screen) -->
+            <div id="point-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-20 hidden">
+                <h3 id="point-title" class="arcade-font text-2xl sm:text-3xl text-slate-200 mb-2">PUNKT!</h3>
+                <p class="text-xs text-slate-400 arcade-font animate-pulse">NÄCHSTE RUNDE STARTET GLEICH...</p>
+            </div>
+
+            <!-- Game Over Overlay -->
+            <div id="gameover-overlay" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-30 hidden">
+                <h2 id="gameover-title" class="arcade-font text-3xl sm:text-4xl text-slate-200 mb-2">VERLOREN</h2>
+                <p class="text-xs text-slate-400 arcade-font mt-1 mb-4">Drücke LEERTASTE oder ENTER zum Neustarten</p>
+                
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button id="restart-btn" class="bg-slate-200 hover:bg-white text-slate-950 font-bold arcade-font text-xs sm:text-sm px-6 py-3 rounded-xl transition cursor-pointer select-none">
+                        NOCHMAL SPIELEN
+                    </button>
+                    <button id="menu-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold arcade-font text-xs sm:text-sm px-6 py-3 rounded-xl transition cursor-pointer select-none">
+                        HAUPTMENÜ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Power-Up Active Status Indicator -->
+        <div id="powerup-status" class="arcade-font text-[10px] sm:text-xs text-amber-300 h-4 mt-1 text-center font-bold"></div>
+
+        <!-- Touch Controls (Nur auf echten Touchscreens während des Spiels sichtbar) -->
+        
+        <div id="touch-controls-bar" class="touch-controls w-full justify-between items-center mt-2 px-1">
+            <div class="flex space-x-2">
+                <button id="touch-left" class="bg-slate-800 active:bg-slate-700 text-white w-14 h-14 rounded-lg font-bold text-2xl flex items-center justify-center select-none">←</button>
+                <button id="touch-right" class="bg-slate-800 active:bg-slate-700 text-white w-14 h-14 rounded-lg font-bold text-2xl flex items-center justify-center select-none">→</button>
+            </div>
+            <div>
+                <button id="touch-jump" class="bg-slate-200 active:bg-white text-slate-950 px-8 h-14 rounded-lg font-bold text-sm select-none">SPRUNG</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Player Health Bar Container -->
+    <div class="w-full max-w-4xl px-2 mt-1">
+        <div class="w-full h-3 sm:h-4 bg-slate-900 border border-slate-700 rounded-full overflow-hidden p-0.5">
+            <div id="player-hp-bar" class="h-full bg-slate-200 rounded-full transition-all duration-300 w-full"></div>
+        </div>
+        <div class="text-xs sm:text-sm font-bold tracking-widest text-slate-200 arcade-font mt-1">
+            DU
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

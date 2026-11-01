@@ -1,0 +1,97 @@
+# Level 1 – Neon Start (leicht: Würfel + ein ruhiger Schiffsteil)
+name Neon Start
+diff easy
+stars 2
+speed 10.4
+bpm 140
+song 0
+length 470
+color 0 #1f62ff #0a49d6 #6fe3ff
+
+# --- Aufwärmen ---
+spike 18 0
+spike 28 0
+spike 38 0 2
+block 48 0 4 1
+deco 49 1 2 1
+spike 52 0 2
+spike 62 0 2
+
+# --- Treppe ---
+block 72 0 2 1
+block 76 0 2 2
+block 80 0 2 3
+deco 80 3 2 1
+spike 82 0 4
+spike 94 0
+spike 100 0 2
+
+# --- Pad ---
+pad 110 0
+spike 112 0 4
+coin 114 4
+
+# --- Schiff (breit und ruhig) ---
+color 122 #c4128f #9b0d75 #ffb3f0
+ship 126 0
+block 140 0 1 3
+spike 140 3
+block 152 7 1 3
+cspike 152 6
+block 164 0 1 4
+spike 164 4
+block 176 6 1 4
+cspike 176 5
+block 188 0 16 2
+block 188 8 16 2
+spike 193 2
+spike 199 2
+cspike 196 7
+block 210 3 8 7
+deco 210 2 8 1
+cube 214 0
+
+# --- Würfel 2 ---
+color 222 #1f62ff #0a49d6 #6fe3ff
+spike 228 0
+spike 236 0 2
+spike 246 0 4
+orb 248 2
+block 258 0 3 1
+spike 261 0 2
+block 263 0 3 1
+spike 266 0 2
+block 268 0 3 1
+spike 278 0 2
+
+# --- Pad auf Turm ---
+color 286 #0f9e8a #087a6a #b6ff3b
+pad 292 0
+spike 294 0 2
+block 297 0 3 3
+deco 297 3 3 1
+spike 300 0 4
+coin 306 2
+
+# --- Ringe ---
+spike 314 0 9
+orb 316 2
+orb 320 2
+block 330 0 3 1
+spike 333 0 2
+
+# --- Finale ---
+color 340 #ff6a00 #c44d00 #ffe14f
+spike 348 0
+spike 356 0 2
+block 366 0 2 1
+block 370 0 2 2
+spike 372 0 3
+coin 379 1
+spike 384 0 2
+spike 396 0
+spike 404 0 2
+block 414 0 4 1
+spike 418 0 3
+spike 430 0 2
+spike 440 0
