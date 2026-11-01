@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky Detect – prüft Texte auf KI-Spuren</title>
+<meta name="description" content="Dokumente ablegen und auf typische Spuren von Sprachmodellen prüfen. Läuft komplett im Browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="./">
+    <span class="logo"><span></span></span>
+    <span class="wordmark">Sky Detect</span>
+  </a>
+  <p class="engine" id="engine"><i></i><span>Prüfmodul lädt</span></p>
+</header>
+
+<div class="desk">
+  <aside class="side">
+    <label class="tray" id="drop">
+      <input type="file" id="file" multiple hidden accept=".txt,.md,.pdf,.docx,.odt,.pptx,.rtf,.html,.htm,.csv,.json,.tex">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 26v6h24v-6M20 7v18m0 0-7-7m7 7 7-7"/></svg>
+      <strong>Dokument hier ablegen</strong>
+      <span>oder klicken zum Auswählen</span>
+      <small>PDF, Word, ODT, PowerPoint, RTF, Text, HTML</small>
+    </label>
+    <button class="btn plain" id="pasteBtn" type="button">Text einfügen</button>
+
+    <section class="files">
+      <div class="files-head"><h2>Geprüft</h2><button class="link" id="clearBtn" type="button">Liste leeren</button></div>
+      <ul id="queue"><li class="empty">Noch nichts geprüft.</li></ul>
+    </section>
+
+    <section class="key card-s">
+      <h2>So liest du die Markierungen</h2>
+      <p><mark class="m2">rosa</mark> Satz ist stark KI-typisch</p>
+      <p><mark class="m1">gelb</mark> Satz ist etwas KI-typisch</p>
+      <p><u class="u1">rot unterstrichen</u> typische KI-Floskel</p>
+      <p><u class="u2">gepunktet</u> Wort, das KI gern benutzt</p>
+      <p>Die roten Notizen am Rand sagen, warum ein Satz auffällt.</p>
+    </section>
+  </aside>
+
+  <main class="work">
+    <article class="sheet blank" id="welcome">
+      <h1>Noch kein Text geprüft</h1>
+      <p>Leg links ein Dokument ab oder füge Text ein. Sky Detect sucht nach Spuren, die Sprachmodelle wie ChatGPT oder Claude typischerweise hinterlassen, und markiert sie Satz für Satz.</p>
+      <p>Die Prüfung läuft vollständig in deinem Browser. Kein Text wird hochgeladen.</p>
+    </article>
+
+    <div class="result hidden" id="report">
+      <article class="sheet verdict-sheet">
+        <p class="doc-name" id="fileName"></p>
+
+        <div class="grade">
+          <div class="grade-num" id="gradeNum"><b id="score">0</b><span>von 100</span></div>
+          <div class="grade-text">
+            <p class="score-label">KI-Score</p>
+            <h2 id="verdict"></h2>
+            <p id="verdictText"></p>
+            <p class="meta" id="meta"></p>
+          </div>
+        </div>
+
+        <div class="ruler" aria-hidden="true">
+          <div class="ticks"></div>
+          <span class="pin" id="pin"></span>
+          <div class="zones"><span>menschlich</span><span>unklar</span><span>KI-typisch</span></div>
+        </div>
+
+        <p class="mixed hidden" id="mixed"></p>
+      </article>
+
+      <article class="sheet">
+        <h3>Begründung</h3>
+        <ol class="reasons" id="reasons"></ol>
+      </article>
+
+      <article class="sheet">
+        <h3>Verlauf durch den Text</h3>
+        <p class="hint">Jeder Streifen ist ein Abschnitt von etwa 150 Wörtern. Klick auf einen Streifen, um zur Stelle im Text zu springen.</p>
+        <div class="strip" id="strip"></div>
+
+        <div class="two">
+          <section>
+            <h3>Aufbau</h3>
+            <div id="structure"></div>
+          </section>
+          <section>
+            <h3>Auffällige Formulierungen</h3>
+            <p class="phrases" id="phrases"></p>
+          </section>
+        </div>
+
+      </article>
+
+      <article class="sheet">
+        <h3>Mit einem echten Text derselben Person vergleichen</h3>
+        <p class="hint">Am zuverlässigsten ist der Vergleich mit einem Text, von dem du sicher weißt, dass ihn die Person selbst geschrieben hat, am besten in derselben Textsorte.</p>
+        <div class="compare-actions">
+          <label class="btn plain small">Vergleichstext wählen<input type="file" id="refFile" hidden accept=".txt,.md,.pdf,.docx,.odt,.rtf,.html,.htm"></label>
+          <button class="link" id="refPaste" type="button">oder Vergleichstext einfügen</button>
+        </div>
+        <div id="compare"></div>
+      </article>
+
+      <article class="sheet text-sheet">
+        <div class="page" id="page">
+          <div class="body-text" id="highlight"></div>
+          <div class="margin" id="margin" aria-hidden="true"></div>
+        </div>
+      </article>
+
+      <article class="sheet">
+        <details class="tech">
+          <summary>Technische Messwerte</summary>
+          <table id="tech"></table>
+        </details>
+
+        <div class="sheet-foot">
+          <button class="btn" id="exportBtn" type="button">Bericht speichern</button>
+        </div>
+      </article>
+    </div>
+  </main>
+</div>
+
+<footer class="foot">
+  <p><strong>Bitte beachten:</strong> Kein KI-Detektor ist zuverlässig, auch dieser nicht. Sky Detect erkennt Stilmuster, keinen Beweis. Sachliche, sehr glatte oder nicht-muttersprachliche Texte werden öfter fälschlich als KI eingestuft, und überarbeitete KI-Texte können durchrutschen. Triff keine Entscheidung allein auf dieser Grundlage.</p>
+  <p class="made">Sky Detect von Sky Games</p>
+</footer>
+
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-box">
+    <h2 id="modalTitle">Text einfügen</h2>
+    <textarea id="pasteArea" placeholder="Text hier einfügen"></textarea>
+    <div class="modal-actions">
+      <button class="btn plain" id="cancelPaste" type="button">Abbrechen</button>
+      <button class="btn" id="runPaste" type="button">Prüfen</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/wasm-core.js"></script>
+<script src="js/parsers.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

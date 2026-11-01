@@ -1,0 +1,141 @@
+# Level 4 – Wave Storm (Wave: gedrückt halten = schräg hoch, loslassen = schräg runter)
+name Wave Storm
+diff hard
+stars 6
+speed 10.4
+bpm 150
+song 3
+length 420
+color 0 #1a1a8f #12126b #4fe3ff
+
+# --- kurzer Würfel-Start ---
+spike 16 0
+spike 24 0 2
+wave 34 0
+
+# --- Säulen-Slalom ---
+color 36 #4a0fa0 #330a70 #ff5ad6
+block 44 0 1 4
+spike 44 4
+block 51 6 1 4
+cspike 51 5
+block 58 0 1 5
+spike 58 5
+block 65 5 1 5
+cspike 65 4
+block 72 0 1 4
+spike 72 4
+block 79 6 1 4
+cspike 79 5
+block 86 0 1 6
+spike 86 6
+block 93 4 1 6
+cspike 93 3
+coin 69 7
+
+# --- Zickzack-Tunnel ---
+color 100 #0a5e8a #07405e #7affd6
+block 104 0 1 1
+block 104 4.5 1 5.5
+block 105 0 1 2
+block 105 5.5 1 4.5
+block 106 0 1 3
+block 106 6.5 1 3.5
+block 107 0 1 4
+block 107 7.5 1 2.5
+block 108 0 1 5
+block 108 8.5 1 1.5
+block 109 0 1 6
+block 109 9.5 1 0.5
+block 110 0 1 7
+block 110 10.5 1 -0.5
+block 111 0 1 6
+block 111 9.5 1 0.5
+block 112 0 1 5
+block 112 8.5 1 1.5
+block 113 0 1 4
+block 113 7.5 1 2.5
+block 114 0 1 3
+block 114 6.5 1 3.5
+block 115 0 1 2
+block 115 5.5 1 4.5
+block 116 0 1 1
+block 116 4.5 1 5.5
+coin 116 2.5
+block 117 0 1 2
+block 117 5.5 1 4.5
+block 118 0 1 3
+block 118 6.5 1 3.5
+block 119 0 1 4
+block 119 7.5 1 2.5
+block 120 0 1 5
+block 120 8.5 1 1.5
+block 121 0 1 6
+block 121 9.5 1 0.5
+block 122 0 1 7
+block 122 10.5 1 -0.5
+block 123 0 1 6
+block 123 9.5 1 0.5
+block 124 0 1 5
+block 124 8.5 1 1.5
+block 125 0 1 4
+block 125 7.5 1 2.5
+block 126 0 1 3
+block 126 6.5 1 3.5
+block 127 0 1 2
+block 127 5.5 1 4.5
+# Tunnel endet bei x=128
+
+# --- Kreissägen ---
+color 136 #8a0a3a #5e0728 #ffd23f
+spike 140 0 50
+saw 146 3 2
+saw 154 6.5 2
+saw 162 1.5 2
+coin 167 7
+saw 171 5 2
+saw 180 2 2
+saw 186 7 2
+
+# --- Stachel-Gang (schnell tippen!) ---
+color 196 #1a1a8f #12126b #4fe3ff
+block 200 0 30 2
+spike 200 2 14
+spike 220 2 10
+block 200 7 30 3
+cspike 200 6 14
+cspike 220 6 10
+block 214 2 6 1
+spike 214 3 6
+block 214 6 6 1
+cspike 214 5 6
+
+# --- kopfüber ---
+color 240 #0f7a3a #0a5a2a #b6ff3b
+gup 242 3
+block 252 0 1 5
+spike 252 5
+block 260 5 1 5
+cspike 260 4
+block 268 0 1 4
+spike 268 4
+block 276 6 1 4
+cspike 276 5
+gdown 286 3
+
+# --- Säge-Finale ---
+saw 296 4 3
+saw 306 0 2
+saw 306 8 2
+saw 316 4.5 2
+spike 296 0 30
+
+# --- zurück zum Würfel ---
+color 336 #1a1a8f #12126b #4fe3ff
+block 340 3 10 7
+cube 346 0
+spike 362 0
+spike 370 0 2
+spike 382 0
+spike 390 0 2
+
