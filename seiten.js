@@ -40,14 +40,14 @@ const GITHUB_REPO = "";
 
 const SEITEN = [
   // ======================== GAMES ========================
-   {
-    id: "SkyCraft",
-    kategorie: "games",
-    name: "SkyCraftBeata",
-    ordner: "SkyCraftOpenBeta",
-    bild: "",
-    zeigeInfo: false
-   }, 
+//   {
+//    id: "SkyCraft",
+//    kategorie: "games",
+//    name: "SkyCraftBeata",
+//    ordner: "SkyCraftOpenBeta",
+//    bild: "",
+//    zeigeInfo: false
+//   }, 
    {
     id: "ffa_shooter",
     kategorie: "games",
