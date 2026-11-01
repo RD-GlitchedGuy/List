@@ -1,0 +1,31 @@
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #09090b 100%);
+            min-height: 100vh;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+        }
+        @media (min-width: 640px) {
+            .wheel-container {
+                width: 340px;
+                height: 340px;
+            }
+        }
+        .wheel-pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 28px solid #facc15;
+            z-index: 50;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5));
+        }
+    
