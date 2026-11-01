@@ -1,0 +1,992 @@
+        const firebaseConfig = {
+            apiKey: "AIzaSyCeFrcDRedUgY46Q2k2LArVVh8Hx7m2NbA",
+            authDomain: "itervalle.firebaseapp.com",
+            projectId: "itervalle",
+            storageBucket: "itervalle.firebasestorage.app",
+            messagingSenderId: "792584401162",
+            appId: "1:792584401162:web:c9e5ce57c4e2720bf00af3"
+        };
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+        } catch (e) {
+            console.warn("Firebase Init Hinweis:", e);
+        }
+
+        const db = typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null;
+        const auth = typeof firebase !== 'undefined' && firebase.auth ? firebase.auth() : null;
+        let currentUser = null;
+
+        const CORRECT_SOUND_URL = "https://cdn.pixabay.com/audio/2026/01/10/audio_8675b56de9.mp3";
+
+        const NOTE_SOUND_URLS = {
+            "C": "", "C#": "", "Db": "", "D": "", "D#": "", "Eb": "", "E": "", 
+            "F": "", "F#": "", "Gb": "", "G": "", "G#": "", "Ab": "", "A": "", 
+            "A#": "", "Hb": "", "H": ""
+        };
+
+        const MAIN_INTERVAL_INFO = [
+            {
+                name: "Prime",
+                htsLabel: "0 HTS",
+                number: 1,
+                hasKlein: false,
+                variants: [
+                    { label: "r1 Reine Prime", htsText: "+0 HTS", colorClass: "text-orange-400 bg-orange-950/60 border-orange-500/30" },
+                    { label: "ü1 Übermäßige Prime", htsText: "+1 HTS", colorClass: "text-emerald-400 bg-emerald-950/60 border-emerald-500/30" }
+                ]
+            },
+            {
+                name: "Sekunde",
+                htsLabel: "2 HTS",
+                number: 2,
+                hasKlein: true,
+                variants: [
+                    { label: "v2 Verminderte Sekunde", htsText: "-2 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "k2 Kleine Sekunde", htsText: "-1 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "g2 Große Sekunde", htsText: "+0 HTS", colorClass: "text-orange-400 bg-orange-950/60 border-orange-500/30" },
+                    { label: "ü2 Übermäßige Sekunde", htsText: "+1 HTS", colorClass: "text-emerald-400 bg-emerald-950/60 border-emerald-500/30" }
+                ]
+            },
+            {
+                name: "Terz",
+                htsLabel: "4 HTS",
+                number: 3,
+                hasKlein: true,
+                variants: [
+                    { label: "v3 Verminderte Terz", htsText: "-2 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "k3 Kleine Terz", htsText: "-1 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "g3 Große Terz", htsText: "+0 HTS", colorClass: "text-orange-400 bg-orange-950/60 border-orange-500/30" },
+                    { label: "ü3 Übermäßige Terz", htsText: "+1 HTS", colorClass: "text-emerald-400 bg-emerald-950/60 border-emerald-500/30" }
+                ]
+            },
+            {
+                name: "Quarte",
+                htsLabel: "5 HTS",
+                number: 4,
+                hasKlein: false,
+                variants: [
+                    { label: "v4 Verminderte Quarte", htsText: "-1 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "r4 Reine Quarte", htsText: "+0 HTS", colorClass: "text-orange-400 bg-orange-950/60 border-orange-500/30" },
+                    { label: "ü4 Übermäßige Quarte", htsText: "+1 HTS", colorClass: "text-emerald-400 bg-emerald-950/60 border-emerald-500/30" }
+                ]
+            },
+            {
+                name: "Quinte",
+                htsLabel: "7 HTS",
+                number: 5,
+                hasKlein: false,
+                variants: [
+                    { label: "v5 Verminderte Quinte", htsText: "-1 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "r5 Reine Quinte", htsText: "+0 HTS", colorClass: "text-orange-400 bg-orange-950/60 border-orange-500/30" },
+                    { label: "ü5 Übermäßige Quinte", htsText: "+1 HTS", colorClass: "text-emerald-400 bg-emerald-950/60 border-emerald-500/30" }
+                ]
+            },
+            {
+                name: "Sexte",
+                htsLabel: "9 HTS",
+                number: 6,
+                hasKlein: true,
+                variants: [
+                    { label: "v6 Verminderte Sexte", htsText: "-2 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "k6 Kleine Sexte", htsText: "-1 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "g6 Große Sexte", htsText: "+0 HTS", colorClass: "text-orange-400 bg-orange-950/60 border-orange-500/30" },
+                    { label: "ü6 Übermäßige Sexte", htsText: "+1 HTS", colorClass: "text-emerald-400 bg-emerald-950/60 border-emerald-500/30" }
+                ]
+            },
+            {
+                name: "Septime",
+                htsLabel: "11 HTS",
+                number: 7,
+                hasKlein: true,
+                variants: [
+                    { label: "v7 Verminderte Septime", htsText: "-2 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "k7 Kleine Septime", htsText: "-1 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "g7 Große Septime", htsText: "+0 HTS", colorClass: "text-orange-400 bg-orange-950/60 border-orange-500/30" },
+                    { label: "ü7 Übermäßige Septime", htsText: "+1 HTS", colorClass: "text-emerald-400 bg-emerald-950/60 border-emerald-500/30" }
+                ]
+            },
+            {
+                name: "Oktave",
+                htsLabel: "12 HTS",
+                number: 8,
+                hasKlein: false,
+                variants: [
+                    { label: "v8 Verminderte Oktave", htsText: "-1 HTS", colorClass: "text-blue-400 bg-blue-950/60 border-blue-500/30" },
+                    { label: "r8 Reine Oktave", htsText: "+0 HTS", colorClass: "text-orange-400 bg-orange-950/60 border-orange-500/30" },
+                    { label: "ü8 Übermäßige Oktave", htsText: "+1 HTS", colorClass: "text-emerald-400 bg-emerald-950/60 border-emerald-500/30" }
+                ]
+            }
+        ];
+
+        const THEMES = [
+            { id: 'default', name: 'Standard Dunkel', price: 0 },
+            { id: 'cyberpunk', name: 'Cyberpunk Neon', price: 5 },
+            { id: 'emerald', name: 'Emerald Forest', price: 5 },
+            { id: 'sunset', name: 'Sunset Glow', price: 8 },
+            { id: 'ocean', name: 'Deep Ocean', price: 8 },
+            { id: 'ruby', name: 'Ruby Red', price: 10 },
+            { id: 'amethyst', name: 'Amethyst', price: 10 },
+            { id: 'amber', name: 'Amber Gold', price: 12 },
+            { id: 'midnight', name: 'Midnight Blue', price: 12 },
+            { id: 'matrix', name: 'Matrix Green', price: 15 },
+            { id: 'cherry', name: 'Cherry Blossom', price: 15 },
+            { id: 'arctic', name: 'Arctic Frost', price: 18 },
+            { id: 'coffee', name: 'Warm Coffee', price: 18 },
+            { id: 'neon', name: 'Vibrant Neon', price: 20 },
+            { id: 'slate', name: 'Slate Modern', price: 25 },
+            { id: 'gold', name: 'Royal Gold', price: 30 }
+        ];
+
+        const UPGRADES = [
+            { id: 'boost_2x', name: '2x Multiplikator (5 Min)', price: 50, desc: 'Verdoppelt den Bossbar-Fortschritt für 5 Minuten!' },
+            { id: 'auto_solver', name: 'Glücks-Autolöser (10%)', price: 100, desc: 'Jede neue Aufgabe hat eine 10%ige Chance, sich automatisch zu lösen!' }
+        ];
+
+        const MUSIC_TRACKS = [
+            { id: 'chill', name: 'error sound not found', price: 0, url: 'https://error.mp3' },
+            { id: 'error-undertale', name: 'error sound not found', price: 0, url: 'https://error.mp3' }, 
+            { id: 'error-minecraft', name: 'error sound not found', price: 0, url: 'https://error.mp3' }, 
+            { id: 'error-geometry-dash', name: 'error sound not found', price: 0, url: 'https://error.mp3' }, 
+            { id: 'error-hollow-knight', name: 'error sound not found', price: 0, url: 'https://error.mp3' }
+        ];
+
+        // Wörterbuch mit Oktavangaben für exakte Höhenbestimmung auf den Notenlinien
+        const NOTE_DICTIONARY = {
+            "C":   { name: "C",  midi: 60, step: -2, acc: null, oct: 4 },
+            "C#":  { name: "C#", midi: 61, step: -2, acc: "sharp", oct: 4 },
+            "Cis": { name: "C#", midi: 61, step: -2, acc: "sharp", oct: 4 },
+            "Db":  { name: "Db", midi: 61, step: -1, acc: "flat", oct: 4 },
+            "Des": { name: "Db", midi: 61, step: -1, acc: "flat", oct: 4 },
+            "D":   { name: "D",  midi: 62, step: -1, acc: null, oct: 4 },
+            "D#":  { name: "D#", midi: 63, step: -1, acc: "sharp", oct: 4 },
+            "Dis": { name: "D#", midi: 63, step: -1, acc: "sharp", oct: 4 },
+            "Eb":  { name: "Eb", midi: 63, step: 0,  acc: "flat", oct: 4 },
+            "Es":  { name: "Eb", midi: 63, step: 0,  acc: "flat", oct: 4 },
+            "E":   { name: "E",  midi: 64, step: 0,  acc: null, oct: 4 },
+            "E#":  { name: "E#", midi: 65, step: 0,  acc: "sharp", oct: 4 },
+            "Eis": { name: "E#", midi: 65, step: 0,  acc: "sharp", oct: 4 },
+            "F":   { name: "F",  midi: 65, step: 1,  acc: null, oct: 4 },
+            "F#":  { name: "F#", midi: 66, step: 1,  acc: "sharp", oct: 4 },
+            "Fis": { name: "F#", midi: 66, step: 1,  acc: "sharp", oct: 4 },
+            "Gb":  { name: "Gb", midi: 66, step: 2,  acc: "flat", oct: 4 },
+            "Ges": { name: "Gb", midi: 66, step: 2,  acc: "flat", oct: 4 },
+            "G":   { name: "G",  midi: 67, step: 2,  acc: null, oct: 4 },
+            "G#":  { name: "G#", midi: 68, step: 2,  acc: "sharp", oct: 4 },
+            "Gis": { name: "G#", midi: 68, step: 2,  acc: "sharp", oct: 4 },
+            "Ab":  { name: "Ab", midi: 68, step: 3,  acc: "flat", oct: 4 },
+            "As":  { name: "Ab", midi: 68, step: 3,  acc: "flat", oct: 4 },
+            "A":   { name: "A",  midi: 69, step: 3,  acc: null, oct: 4 },
+            "A#":  { name: "A#", midi: 70, step: 3,  acc: "sharp", oct: 4 },
+            "Ais": { name: "A#", midi: 70, step: 3,  acc: "sharp", oct: 4 },
+            "Hb":  { name: "Hb", midi: 70, step: 4,  acc: "flat", oct: 4 },
+            "B":   { name: "Hb", midi: 70, step: 4,  acc: "flat", oct: 4 },
+            "H":   { name: "H",  midi: 71, step: 4,  acc: null, oct: 4 },
+            "H#":  { name: "H#", midi: 72, step: 4,  acc: "sharp", oct: 4 },
+            "His": { name: "H#", midi: 72, step: 4,  acc: "sharp", oct: 4 },
+            "C5":  { name: "C5", midi: 72, step: 5,  acc: null, oct: 5 },
+            "C#5": { name: "C#5", midi: 73, step: 5, acc: "sharp", oct: 5 },
+            "Db5": { name: "Db5", midi: 73, step: 6, acc: "flat", oct: 5 },
+            "D5":  { name: "D5", midi: 74, step: 6,  acc: null, oct: 5 },
+            "D#5": { name: "D#5", midi: 75, step: 6, acc: "sharp", oct: 5 },
+            "Eb5": { name: "Eb5", midi: 75, step: 7, acc: "flat", oct: 5 },
+            "E5":  { name: "E5", midi: 76, step: 7,  acc: null, oct: 5 },
+            "F5":  { name: "F5", midi: 77, step: 8,  acc: null, oct: 5 },
+            "F#5": { name: "F#5", midi: 78, step: 8, acc: "sharp", oct: 5 },
+            "Gb5": { name: "Gb5", midi: 78, step: 9, acc: "flat", oct: 5 },
+            "G5":  { name: "G5", midi: 79, step: 9,  acc: null, oct: 5 }
+        };
+
+        const QUALITY_MAP = {
+            "P": "r", // Perfect -> rein
+            "m": "k", // minor -> klein
+            "M": "g", // Major -> groß
+            "A": "ü", // Augmented -> übermäßig
+            "d": "v"  // diminished -> vermindert
+        };
+
+        function toGermanInterval(tonalInterval) {
+            const details = Tonal.Interval.get(tonalInterval);
+            if (details.empty) return "Unbekannt";
+
+            // Doppelübermäßig (AA / aa) und Doppelvermindert (dd) streng ausschließen
+            if (details.q === "AA" || details.q === "dd" || details.q.length > 1) {
+                return "Unbekannt";
+            }
+
+            const germanQuality = QUALITY_MAP[details.q];
+            if (!germanQuality) return "Unbekannt";
+
+            const step = details.num;
+            // Bereich strictly auf r1 bis ü8 festlegen (Stufe 1 bis 8, max 13 Halbtöne)
+            if (step < 1 || step > 8) return "Unbekannt";
+            if (details.semitones < 0 || details.semitones > 13) return "Unbekannt";
+
+            return `${germanQuality}${step}`;
+        }
+
+        function parseTask(item) {
+            const parseNote = (str) => {
+                if (!str) return null;
+                const clean = str.trim();
+                const foundKey = Object.keys(NOTE_DICTIONARY).find(k => k.toLowerCase() === clean.toLowerCase());
+                return foundKey ? { ...NOTE_DICTIONARY[foundKey] } : null;
+            };
+
+            const n1 = parseNote(item.note1);
+            const n2 = parseNote(item.note2);
+
+            if (!n1 || !n2) return null;
+
+            // Die 2. Note darf NIEMALS tiefer als die 1. Note liegen (weder optisch noch akustisch)
+            if (n2.midi < n1.midi || n2.step < n1.step) {
+                return null;
+            }
+
+            const note1WithOct = n1.name + n1.oct;
+            const note2WithOct = n2.name + n2.oct;
+
+            const tonalDist = Tonal.Interval.distance(note1WithOct, note2WithOct);
+            const intervalName = toGermanInterval(tonalDist);
+
+            if (intervalName === "Unbekannt") return null;
+
+            return {
+                intervalName: intervalName,
+                n1: n1,
+                n2: n2,
+                sound1: item.sound1 || item.url1 || null,
+                sound2: item.sound2 || item.url2 || null,
+                validAnswers: item.validAnswers || [intervalName]
+            };
+        }
+
+        const LOWER_NOTES = [ "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Hb", "H" ];
+        const ALL_NOTES = [ 
+            "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Hb", "H",
+            "C5", "C#5", "Db5", "D5", "D#5", "Eb5", "E5", "F5", "F#5", "Gb5", "G5"
+        ];
+
+        const RAW_INTERVAL_TASK_POOL = LOWER_NOTES.flatMap(n1 => ALL_NOTES.map(n2 => ({ note1: n1, note2: n2 })));
+        
+        // Filtert ungültige Aufgaben, tiefer liegende 2. Noten sowie "aa" und "dd" heraus
+        const INTERVAL_TASK_POOL = RAW_INTERVAL_TASK_POOL
+            .map(parseTask)
+            .filter(task => task !== null);
+
+        let state = {
+            coins: 0,
+            streak: 0,
+            lastStreakDate: '',
+            totalRounds: 0,
+            unlockedThemes: ['default'],
+            activeTheme: 'default',
+            unlockedUpgrades: [],
+            unlockedMusic: [],
+            activeMusic: '',
+            boostUntil: 0,
+            notesHidden: false,
+            
+            bossProgress: 0,
+            isWaiting: false,
+            currentTask: null,
+            shopTab: 'themes',
+            expandedIntervalIndex: null
+        };
+
+        let boostInterval = null;
+
+        window.onload = function () {
+            state.coins = parseInt(localStorage.getItem('coins')) || 0;
+            state.streak = parseInt(localStorage.getItem('streak')) || 0;
+            state.lastStreakDate = localStorage.getItem('lastStreakDate') || '';
+            state.totalRounds = parseInt(localStorage.getItem('totalRounds')) || 0;
+            state.bossProgress = parseInt(localStorage.getItem('bossProgress')) || 0;
+            state.activeTheme = localStorage.getItem('activeTheme') || 'default';
+            state.unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes') || '["default"]');
+            state.unlockedUpgrades = JSON.parse(localStorage.getItem('unlockedUpgrades') || '[]');
+            state.unlockedMusic = JSON.parse(localStorage.getItem('unlockedMusic') || '[]');
+            state.activeMusic = localStorage.getItem('activeMusic') || '';
+            state.boostUntil = parseInt(localStorage.getItem('boostUntil')) || 0;
+
+            applyTheme(state.activeTheme);
+            checkDailyStreak();
+            initBossbar();
+            generateTask();
+            renderInfoModal();
+            updateUI();
+
+            initFirebaseAndSync();
+
+            document.getElementById('intervalInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    checkInput();
+                }
+            });
+        };
+
+        function initFirebaseAndSync() {
+            if (!auth) return;
+
+            auth.signInAnonymously().catch(err => console.warn("Firebase Auth Hinweis:", err));
+
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    currentUser = user;
+                    if (!db) return;
+                    try {
+                        const userRef = db.collection('users').doc(user.uid);
+                        const doc = await userRef.get();
+
+                        if (doc.exists) {
+                            const data = doc.data();
+                            state.coins = data.coins ?? 0;
+                            state.streak = data.streak ?? 0;
+                            state.lastStreakDate = data.lastStreakDate ?? '';
+                            state.totalRounds = data.totalRounds ?? 0;
+                            state.bossProgress = data.bossProgress ?? 0;
+                            state.unlockedThemes = data.unlockedThemes ?? ['default'];
+                            state.activeTheme = data.activeTheme ?? 'default';
+                            state.unlockedUpgrades = data.unlockedUpgrades ?? [];
+                            state.unlockedMusic = data.unlockedMusic ?? [];
+                            state.activeMusic = data.activeMusic ?? '';
+                            state.boostUntil = data.boostUntil ?? 0;
+                        } else {
+                            await saveState();
+                        }
+
+                        applyTheme(state.activeTheme);
+                        checkDailyStreak();
+                        renderBossbar();
+                        updateUI();
+
+                        if (state.activeMusic) {
+                            const track = MUSIC_TRACKS.find(t => t.id === state.activeMusic);
+                            if (track) playMusicTrack(track.id, false);
+                        }
+
+                        if (state.boostUntil > Date.now()) {
+                            startBoostTimerUI();
+                        }
+                    } catch (e) {
+                        console.warn("Firestore Sync Hinweis:", e);
+                    }
+                }
+            });
+        }
+
+        async function saveState() {
+            localStorage.setItem('coins', state.coins);
+            localStorage.setItem('streak', state.streak);
+            localStorage.setItem('lastStreakDate', state.lastStreakDate);
+            localStorage.setItem('totalRounds', state.totalRounds);
+            localStorage.setItem('bossProgress', state.bossProgress);
+            localStorage.setItem('unlockedThemes', JSON.stringify(state.unlockedThemes));
+            localStorage.setItem('activeTheme', state.activeTheme);
+            localStorage.setItem('unlockedUpgrades', JSON.stringify(state.unlockedUpgrades));
+            localStorage.setItem('unlockedMusic', JSON.stringify(state.unlockedMusic));
+            localStorage.setItem('activeMusic', state.activeMusic);
+            localStorage.setItem('boostUntil', state.boostUntil);
+
+            if (currentUser && db) {
+                try {
+                await db.collection('users').doc(currentUser.uid).set({
+                    coins: state.coins ?? 0,
+                    streak: state.streak ?? 0,
+                    lastStreakDate: state.lastStreakDate || '',
+                    totalRounds: state.totalRounds ?? 0,
+                    bossProgress: state.bossProgress ?? 0,
+                    unlockedThemes: state.unlockedThemes || ['default'],
+                    activeTheme: state.activeTheme || 'default',
+                    unlockedUpgrades: state.unlockedUpgrades || [],
+                    unlockedMusic: state.unlockedMusic || [],
+                    activeMusic: state.activeMusic || '',
+                    boostUntil: state.boostUntil ?? 0,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                } catch (e) {
+                    console.error("Fehler beim Speichern in Firestore:", e);
+                }
+            }
+        }
+
+        function checkDailyStreak() {
+            const today = new Date().toDateString();
+            if (state.lastStreakDate !== today) {
+                const yesterday = new Date(Date.now() - 86400000).toDateString();
+                if (state.lastStreakDate === yesterday) {
+                    state.streak++;
+                } else if (state.lastStreakDate !== '') {
+                    state.streak = 1;
+                } else {
+                    state.streak = 1;
+                }
+                state.lastStreakDate = today;
+                saveState();
+            }
+        }
+
+        function initBossbar() {
+            renderBossbar();
+        }
+
+        function renderBossbar() {
+            const container = document.getElementById("bossbarContainer");
+            container.innerHTML = `
+                <div id="bossbarText" class="bossbar-text">${state.bossProgress} / 10 Aufgaben</div>
+            `;
+            for (let i = 0; i < 10; i++) {
+                const seg = document.createElement('div');
+                seg.className = `bossbar-segment ${i < state.bossProgress ? 'correct' : ''}`;
+                container.appendChild(seg);
+            }
+        }
+
+        function generateTask() {
+            if (state.isWaiting) return;
+            
+            if (state.unlockedUpgrades.includes('auto_solver') && Math.random() < 0.10) {
+                state.currentTask = INTERVAL_TASK_POOL[0];
+                renderStaff();
+                document.getElementById('feedbackMsg').className = "text-center font-bold text-amber-400 text-sm min-h-[24px] w-full";
+                document.getElementById('feedbackMsg').innerText = "Glücks-Autolöser! aktiviert";
+                setTimeout(() => handleCorrectAnswer(), 800);
+                return;
+            }
+
+            let selectedTask;
+            let attempts = 0;
+
+            do {
+                const randIdx = Math.floor(Math.random() * INTERVAL_TASK_POOL.length);
+                selectedTask = INTERVAL_TASK_POOL[randIdx];
+                attempts++;
+            } while ((!selectedTask || selectedTask.intervalName === "Unbekannt") && attempts < 100);
+
+            state.currentTask = selectedTask;
+
+            document.getElementById('intervalInput').value = "";
+            document.getElementById('note1Input').value = "";
+            document.getElementById('note2Input').value = "";
+            document.getElementById('htsInput').value = "";
+            document.getElementById('feedbackMsg').innerText = "";
+
+            renderStaff();
+        }
+
+        function renderStaff() {
+            const svg = document.getElementById("staffSvg");
+            svg.innerHTML = "";
+
+            for (let i = 0; i < 5; i++) {
+                const y = 45 + i * 12;
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", "30");
+                line.setAttribute("y1", y);
+                line.setAttribute("x2", "250");
+                line.setAttribute("y2", y);
+                line.setAttribute("stroke", "#555");
+                line.setAttribute("stroke-width", "2");
+                svg.appendChild(line);
+            }
+
+            if (!state.notesHidden && state.currentTask) {
+                drawNoteOnStaff(svg, 100, state.currentTask.n1);
+                drawNoteOnStaff(svg, 180, state.currentTask.n2);
+                document.getElementById('playNotesBtn').classList.add('hidden');
+            } else {
+                document.getElementById('playNotesBtn').classList.remove('hidden');
+            }
+        }
+
+        function drawNoteOnStaff(svg, cx, noteObj) {
+            const cy = 93 - (noteObj.step * 6);
+
+            if (noteObj.acc === 'sharp') {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", cx - 18);
+                text.setAttribute("y", cy + 5);
+                text.setAttribute("fill", "#f3f4f6");
+                text.setAttribute("font-size", "18");
+                text.setAttribute("font-weight", "bold");
+                text.textContent = "♯";
+                svg.appendChild(text);
+            } else if (noteObj.acc === 'flat') {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", cx - 18);
+                text.setAttribute("y", cy + 4);
+                text.setAttribute("fill", "#f3f4f6");
+                text.setAttribute("font-size", "18");
+                text.setAttribute("font-weight", "bold");
+                text.textContent = "♭";
+                svg.appendChild(text);
+            }
+
+            const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+            ellipse.setAttribute("cx", cx);
+            ellipse.setAttribute("cy", cy);
+            ellipse.setAttribute("rx", "6");
+            ellipse.setAttribute("ry", "4.5");
+            ellipse.setAttribute("fill", "#f3f4f6");
+            svg.appendChild(ellipse);
+
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", cx + 5);
+            line.setAttribute("y1", cy);
+            line.setAttribute("x2", cx + 5);
+            line.setAttribute("y2", cy - 25);
+            line.setAttribute("stroke", "#f3f4f6");
+            line.setAttribute("stroke-width", "2");
+            svg.appendChild(line);
+
+            if (noteObj.step === 0 || noteObj.step === -2) {
+                const ledger = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                ledger.setAttribute("x1", cx - 12);
+                ledger.setAttribute("y1", cy);
+                ledger.setAttribute("x2", cx + 12);
+                ledger.setAttribute("y2", cy);
+                ledger.setAttribute("stroke", "#888");
+                ledger.setAttribute("stroke-width", "2");
+                svg.appendChild(ledger);
+            }
+        }
+
+        function toggleNotesVisibility() {
+            state.notesHidden = !state.notesHidden;
+            const eyeIcon = document.getElementById('eyeIcon');
+            eyeIcon.className = state.notesHidden ? 'fas fa-eye-slash text-lg text-purple-400' : 'fas fa-eye text-lg text-purple-400';
+            renderStaff();
+        }
+
+        function playNoteSound(noteObj, customUrl) {
+            const url = customUrl || (noteObj && NOTE_SOUND_URLS[noteObj.name]);
+            if (url && url.trim() !== "") {
+                const audio = new Audio(url);
+                audio.volume = 0.6;
+                audio.play().catch(e => {
+                    console.warn("Audio URL konnte nicht abgespielt werden, nutze Synth-Fallback:", e);
+                    if (noteObj && noteObj.midi) {
+                        const volume = state.notesHidden ? 0.5 : 0.15;
+                        playTone(midiToFreq(noteObj.midi), 'sine', 0.4, volume);
+                    }
+                });
+            } else if (noteObj && noteObj.midi) {
+                const volume = state.notesHidden ? 0.5 : 0.15;
+                playTone(midiToFreq(noteObj.midi), 'sine', 0.4, volume);
+            }
+        }
+
+        function playIntervalSound() {
+            if (state.currentTask) {
+                playNoteSound(state.currentTask.n1, state.currentTask.sound1 || state.currentTask.url1);
+                setTimeout(() => {
+                    playNoteSound(state.currentTask.n2, state.currentTask.sound2 || state.currentTask.url2);
+                }, 400);
+            }
+        }
+
+        function playSoundFromUrl(url) {
+            if (!url) return;
+            try {
+                const audio = new Audio(url);
+                audio.volume = 0.6;
+                audio.play().catch(e => console.log("Audio URL Play error:", e));
+            } catch (e) {
+                console.error("Audio play failed:", e);
+            }
+        }
+
+        function midiToFreq(midi) {
+            return 440 * Math.pow(2, (midi - 69) / 12);
+        }
+
+        function playTone(freq, type, duration, volume = 0.15) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(volume, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
+
+        function matchNoteString(userInput, noteObj) {
+            if (!userInput) return true;
+            const cleanInput = userInput.trim().toLowerCase().replace(/♯/g, '#').replace(/♭/g, 'b');
+            const cleanTargetName = noteObj.name.toLowerCase().replace(/♯/g, '#').replace(/♭/g, 'b');
+            
+            if (cleanInput === cleanTargetName) return true;
+
+            const noteAliases = {
+                60: ["c", "c4"],
+                61: ["c#", "cis", "db", "des"],
+                62: ["d", "d4"],
+                63: ["d#", "dis", "eb", "es"],
+                64: ["e", "e4"],
+                65: ["f", "f4"],
+                66: ["f#", "fis", "gb", "ges"],
+                67: ["g", "g4"],
+                68: ["g#", "gis", "ab", "as"],
+                69: ["a", "a4"],
+                70: ["a#", "ais", "bb", "b"],
+                71: ["h", "b", "h4"],
+                72: ["c", "c5"]
+            };
+
+            const validList = noteAliases[noteObj.midi] || [];
+            return validList.includes(cleanInput);
+        }
+
+        function checkInput() {
+            if (state.isWaiting || !state.currentTask) return;
+
+            const rawInput = document.getElementById('intervalInput').value.trim();
+            const feedbackEl = document.getElementById('feedbackMsg');
+
+            const userN1 = document.getElementById('note1Input').value.trim();
+            const userN2 = document.getElementById('note2Input').value.trim();
+
+            if (rawInput === "" && userN1 === "" && userN2 === "") {
+                feedbackEl.className = "text-center font-bold text-red-500 text-sm min-h-[24px] w-full";
+                feedbackEl.innerText = "Bitte gib eine Antwort ein! ✗";
+                playTone(150, 'sawtooth', 0.3);
+                return;
+            }
+
+            let isCorrect = true;
+
+            if (rawInput !== "") {
+                const cleanInput = rawInput.toLowerCase().replace(/[\.\-\s]/g, '');
+                const validListNormalized = state.currentTask.validAnswers.map(a => a.toLowerCase().replace(/[\.\-\s]/g, ''));
+                
+                if (!validListNormalized.includes(cleanInput)) {
+                    isCorrect = false;
+                }
+            }
+
+            if (userN1 && !matchNoteString(userN1, state.currentTask.n1)) isCorrect = false;
+            if (userN2 && !matchNoteString(userN2, state.currentTask.n2)) isCorrect = false;
+
+            if (isCorrect) {
+                handleCorrectAnswer();
+            } else {
+                feedbackEl.className = "text-center font-bold text-red-500 text-sm min-h-[24px] w-full";
+                feedbackEl.innerText = `Falsch! ✗ (Richtig: ${state.currentTask.intervalName})`;
+                playTone(150, 'sawtooth', 0.3);
+
+                state.isWaiting = true;
+                setTimeout(() => {
+                    state.isWaiting = false;
+                    generateTask();
+                }, 2200);
+            }
+        }
+
+        function handleCorrectAnswer() {
+            const feedbackEl = document.getElementById('feedbackMsg');
+            const isBoosted = Date.now() < state.boostUntil;
+            const stepsToAdd = isBoosted ? 2 : 1;
+
+            for (let s = 0; s < stepsToAdd; s++) {
+                if (state.bossProgress < 10) {
+                    state.bossProgress++;
+                }
+            }
+
+            renderBossbar();
+            feedbackEl.className = "text-center font-bold text-emerald-400 text-sm min-h-[24px] w-full";
+            feedbackEl.innerText = isBoosted ? "Richtig! (+2 Multiplikator) ✓" : "Richtig! ✓";
+            
+            playSoundFromUrl(CORRECT_SOUND_URL);
+
+            if (state.bossProgress >= 10) {
+                state.coins += 10;
+                state.totalRounds++;
+                saveState();
+                updateUI();
+                playTone(800, 'triangle', 0.4);
+
+                feedbackEl.innerText = "Geschaft +10 Coins";
+                state.isWaiting = true;
+                setTimeout(() => {
+                    state.bossProgress = 0;
+                    saveState();
+                    renderBossbar();
+                    state.isWaiting = false;
+                    generateTask();
+                }, 2000);
+            } else {
+                saveState();
+                state.isWaiting = true;
+                setTimeout(() => {
+                    state.isWaiting = false;
+                    generateTask();
+                }, 1200);
+            }
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+            if (id === 'leaderboardModal') {
+                document.getElementById('streakDisplay').innerText = state.streak;
+                document.getElementById('roundsDisplay').innerText = state.totalRounds;
+            } else if (id === 'shopModal') {
+                renderShop();
+            } else if (id === 'infoModal') {
+                renderInfoModal();
+            }
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function switchShopTab(tab) {
+            state.shopTab = tab;
+            document.getElementById('tabThemesBtn').className = tab === 'themes' ? 'py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white transition' : 'py-1.5 rounded-lg text-xs font-bold text-gray-400 hover:text-white transition';
+            document.getElementById('tabUpgradesBtn').className = tab === 'upgrades' ? 'py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white transition' : 'py-1.5 rounded-lg text-xs font-bold text-gray-400 hover:text-white transition';
+            document.getElementById('tabMusicBtn').className = tab === 'music' ? 'py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white transition' : 'py-1.5 rounded-lg text-xs font-bold text-gray-400 hover:text-white transition';
+            renderShop();
+        }
+
+        function renderShop() {
+            const container = document.getElementById("shopItemsContainer");
+            container.innerHTML = "";
+
+            if (state.shopTab === 'themes') {
+                THEMES.forEach(theme => {
+                    const isUnlocked = state.unlockedThemes.includes(theme.id);
+                    const isActive = state.activeTheme === theme.id;
+
+                    let btnHtml = "";
+                    if (isActive) {
+                        btnHtml = `<span class="text-xs font-bold text-emerald-400 bg-emerald-950/50 px-3 py-1.5 rounded-lg border border-emerald-500/30">Aktiv</span>`;
+                    } else if (isUnlocked) {
+                        btnHtml = `<button onclick="selectTheme('${theme.id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition">Auswählen</button>`;
+                    } else {
+                        const canAfford = state.coins >= theme.price;
+                        btnHtml = `<button onclick="buyTheme('${theme.id}', ${theme.price})" class="px-3 py-1.5 ${canAfford ? 'bg-yellow-600 hover:bg-yellow-500 text-black' : 'bg-gray-700 text-gray-500 cursor-not-allowed'} rounded-lg text-xs font-bold transition">
+                            ${theme.price} <i class="fas fa-coins text-[10px]"></i>
+                        </button>`;
+                    }
+
+                    container.innerHTML += `
+                        <div class="bg-[#222] border border-[#333] p-3 rounded-xl flex items-center justify-between">
+                            <span class="font-semibold text-gray-200 text-sm">${theme.name}</span>
+                            ${btnHtml}
+                        </div>
+                    `;
+                });
+            } else if (state.shopTab === 'upgrades') {
+                UPGRADES.forEach(upg => {
+                    const isUnlocked = state.unlockedUpgrades.includes(upg.id);
+                    let btnHtml = "";
+
+                    if (isUnlocked && upg.id === 'boost_2x') {
+                        btnHtml = `<button onclick="buyUpgrade('${upg.id}', ${upg.price})" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-black rounded-lg text-xs font-bold transition">Erneuern (${upg.price} <i class="fas fa-coins text-[10px]"></i>)</button>`;
+                    } else if (isUnlocked) {
+                        btnHtml = `<span class="text-xs font-bold text-emerald-400 bg-emerald-950/50 px-3 py-1.5 rounded-lg border border-emerald-500/30">Besessen</span>`;
+                    } else {
+                        const canAfford = state.coins >= upg.price;
+                        btnHtml = `<button onclick="buyUpgrade('${upg.id}', ${upg.price})" class="px-3 py-1.5 ${canAfford ? 'bg-yellow-600 hover:bg-yellow-500 text-black' : 'bg-gray-700 text-gray-500 cursor-not-allowed'} rounded-lg text-xs font-bold transition">
+                            ${upg.price} <i class="fas fa-coins text-[10px]"></i>
+                        </button>`;
+                    }
+
+                    container.innerHTML += `
+                        <div class="bg-[#222] border border-[#333] p-3 rounded-xl flex flex-col space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-gray-100 text-sm"><i class="fas fa-bolt text-amber-400 mr-1.5"></i>${upg.name}</span>
+                                ${btnHtml}
+                            </div>
+                            <p class="text-xs text-gray-400">${upg.desc}</p>
+                        </div>
+                    `;
+                });
+            } else if (state.shopTab === 'music') {
+                MUSIC_TRACKS.forEach(track => {
+                    const isUnlocked = state.unlockedMusic.includes(track.id);
+                    const isActive = state.activeMusic === track.id;
+
+                    let btnHtml = "";
+                    if (isActive) {
+                        btnHtml = `<button onclick="stopMusic()" class="px-3 py-1.5 bg-red-900/50 text-red-400 border border-red-500 rounded-lg text-xs font-bold">Stoppen</button>`;
+                    } else if (isUnlocked) {
+                        btnHtml = `<button onclick="playMusicTrack('${track.id}', true)" class="px-3 py-1.5 bg-[#333] hover:bg-[#444] text-white rounded-lg text-xs font-bold transition">Abspielen</button>`;
+                    } else {
+                        const canAfford = state.coins >= track.price;
+                        btnHtml = `<button onclick="buyMusic('${track.id}', ${track.price})" class="px-3 py-1.5 ${canAfford ? 'bg-yellow-600 hover:bg-yellow-500 text-black' : 'bg-gray-700 text-gray-500 cursor-not-allowed'} rounded-lg text-xs font-bold transition">
+                            ${track.price} <i class="fas fa-coins text-[10px]"></i>
+                        </button>`;
+                    }
+
+                    container.innerHTML += `
+                        <div class="bg-[#222] border border-[#333] p-3 rounded-xl flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <i class="fas fa-music text-blue-400"></i>
+                                <span class="font-semibold text-gray-200 text-sm">${track.name}</span>
+                            </div>
+                            ${btnHtml}
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function buyTheme(themeId, price) {
+            if (state.coins >= price) {
+                state.coins -= price;
+                state.unlockedThemes.push(themeId);
+                state.activeTheme = themeId;
+                applyTheme(themeId);
+                saveState();
+                updateUI();
+                renderShop();
+            }
+        }
+
+        function selectTheme(themeId) {
+            state.activeTheme = themeId;
+            applyTheme(themeId);
+            saveState();
+            renderShop();
+        }
+
+        function applyTheme(themeId) {
+            document.body.className = themeId === 'default' ? '' : `theme-${themeId}`;
+        }
+
+        function updateUI() {
+            const coinEl = document.getElementById('coinDisplay');
+            if (coinEl) coinEl.innerText = state.coins;
+            const streakEl = document.getElementById('streakDisplay');
+            if (streakEl) streakEl.innerText = state.streak;
+            const roundsEl = document.getElementById('roundsDisplay');
+            if (roundsEl) roundsEl.innerText = state.totalRounds;
+        }
+
+        function stopMusic() {
+            const player = document.getElementById('bgMusicPlayer');
+            if (player) {
+                player.pause();
+                player.currentTime = 0;
+            }
+            state.activeMusic = '';
+            saveState();
+            renderShop();
+        }
+
+        function buyUpgrade(upgId, price) {
+            if (state.coins >= price) {
+                state.coins -= price;
+                if (!state.unlockedUpgrades.includes(upgId)) {
+                    state.unlockedUpgrades.push(upgId);
+                }
+
+                if (upgId === 'boost_2x') {
+                    state.boostUntil = Date.now() + 5 * 60 * 1000;
+                    startBoostTimerUI();
+                }
+
+                saveState();
+                updateUI();
+                renderShop();
+            }
+        }
+
+        function startBoostTimerUI() {
+            document.getElementById('boostIndicator').classList.remove('hidden');
+            if (boostInterval) clearInterval(boostInterval);
+
+            boostInterval = setInterval(() => {
+                const left = state.boostUntil - Date.now();
+                if (left <= 0) {
+                    clearInterval(boostInterval);
+                    document.getElementById('boostIndicator').classList.add('hidden');
+                    state.boostUntil = 0;
+                    saveState();
+                } else {
+                    const mins = Math.floor(left / 60000);
+                    const secs = Math.floor((left % 60000) / 1000);
+                    document.getElementById('boostTimerText').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+
+        function buyMusic(trackId, price) {
+            if (state.coins >= price) {
+                state.coins -= price;
+                state.unlockedMusic.push(trackId);
+                playMusicTrack(trackId, true);
+                saveState();
+                updateUI();
+                renderShop();
+            }
+        }
+
+        function playMusicTrack(trackId, save) {
+            const track = MUSIC_TRACKS.find(t => t.id === trackId);
+            if (!track) return;
+
+            const player = document.getElementById('bgMusicPlayer');
+            player.src = track.url;
+            player.play().catch(e => console.log("Autoplay blocked or stream error:", e));
+
+            state.activeMusic = trackId;
+            if (save) saveState();
+            renderShop();
+        }
+
+        function toggleIntervalExpand(index) {
+            state.expandedIntervalIndex = state.expandedIntervalIndex === index ? null : index;
+            renderInfoModal();
+        }
+
+        function renderInfoModal() {
+            const container = document.getElementById('infoIntervalList');
+            if (!container) return;
+            container.innerHTML = "";
+            
+            MAIN_INTERVAL_INFO.forEach((item, idx) => {
+                const isExpanded = state.expandedIntervalIndex === idx;
+                
+                let variantsHtml = "";
+                if (isExpanded) {
+                    const variantsContent = item.variants.map(v => `
+                        <div class="flex justify-between items-center text-xs py-1 px-2.5 bg-[#171717] rounded-lg">
+                            <span class="text-gray-300 font-medium">${v.label}</span>
+                            <span class="${v.colorClass} px-2 py-0.5 rounded border font-semibold">${v.htsText}</span>
+                        </div>
+                    `).join("");
+
+                    variantsHtml = `
+                        <div class="mt-2.5 pt-2.5 border-t border-[#333] space-y-1.5 pl-2">
+                            <div class="text-[11px] font-bold text-gray-400 mb-1">Abweichende Varianten:</div>
+                            ${variantsContent}
+                        </div>
+                    `;
+                }
+
+                container.innerHTML += `
+                    <div class="bg-[#222] p-3 rounded-xl border border-[#333] cursor-pointer transition hover:border-blue-500/50" onclick="toggleIntervalExpand(${idx})">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-white text-sm flex items-center">
+                                <i class="fas fa-chevron-${isExpanded ? 'down' : 'right'} text-blue-400 text-xs mr-2.5 transition-transform"></i>
+                                ${item.name}
+                            </span>
+                            <span class="bg-[#2a2a2a] text-gray-300 px-2.5 py-1 rounded-md text-xs font-medium border border-[#3a3a3a]">${item.htsLabel}</span>
+                        </div>
+                        ${variantsHtml}
+                    </div>
+                `;
+            });
+        }
+    
