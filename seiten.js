@@ -88,7 +88,7 @@ const SEITEN = [
     name: "Sky Dash",
     ordner: "Sky-Dash",
     datei: "skydash/index.html",
-    bild: "",
+    bild: "SkyDash.png",
     zeigeInfo: false
   },
   {
@@ -115,15 +115,7 @@ const SEITEN = [
     bild: "Schach.png",
     zeigeInfo: false
   },
-  {
-    id: "smashball",
-    kategorie: "games",
-    name: "Smashball",
-    ordner: "SmashBall",
-    bild: "Smashball.png",
-    zeigeInfo: false,
-    sichtbar: false            // war vorher auskommentiert -> auf true setzen zum Anzeigen
-  },
+
 
   // ================= NÜTZLICHE WEBSEITEN =================
   {
@@ -165,30 +157,6 @@ const SEITEN = [
     name: "Song Editor",
     ordner: "song",
     bild: "song_editor.png",
-    zeigeInfo: false
-  },
-  {
-    id: "streamer_live",
-    kategorie: "useful",
-    name: "Streamer Live",
-    ordner: "StreamerLive",
-    bild: "",
-    zeigeInfo: false
-  },
-  {
-    id: "intervall_trainer",
-    kategorie: "useful",
-    name: "Intervall Trainer",
-    ordner: "intervalle",
-    bild: "",
-    zeigeInfo: false
-  },
-  {
-    id: "mathe_quiz",
-    kategorie: "useful",
-    name: "Mathe-Quiz",
-    ordner: "tewe-mathe",
-    bild: "",
     zeigeInfo: false
   },
 ];
