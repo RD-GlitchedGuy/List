@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Sky Games</title>
+  <rect x="2.5" y="2.5" width="59" height="59" rx="13" fill="#000" stroke="#fff" stroke-width="4"/>
+  <circle cx="19" cy="19" r="8.5" fill="#FFB000"/>
+  <g transform="translate(38,38) rotate(-45) scale(0.17)" fill="#fff">
+    <path d="M0,-110 C14,-110 16,-90 16,-70 L14,95 L0,115 L-14,95 L-16,-70 C-16,-90 -14,-110 0,-110Z"/>
+    <path d="M-15,-15 L-112,38 L-112,54 L-15,28Z M15,-15 L112,38 L112,54 L15,28Z"/>
+    <path d="M-12,82 L-50,106 L-50,116 L-12,102Z M12,82 L50,106 L50,116 L12,102Z"/>
+  </g>
+</svg>
