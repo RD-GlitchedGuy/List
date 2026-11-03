@@ -123,6 +123,14 @@ const SEITEN = [
     bild: "seiten/Sky-Swing/preview.jpg",
     zeigeInfo: false
   },
+  {
+    id: "skycraft",
+    kategorie: "games",
+    name: "SkyCraft",
+    ordner: "SkyCraft",
+    bild: "seiten/SkyCraft/preview.jpg",
+    zeigeInfo: false
+  },
 
   // ================= NÜTZLICHE WEBSEITEN =================
   {
@@ -164,6 +172,14 @@ const SEITEN = [
     name: "Song Editor",
     ordner: "song",
     bild: "song_editor.png",
+    zeigeInfo: false
+  },
+  {
+    id: "encoder",
+    kategorie: "useful",
+    name: "Encoder",
+    ordner: "Encoder",
+    bild: "seiten/Encoder/logo.svg",
     zeigeInfo: false
   },
 ];
