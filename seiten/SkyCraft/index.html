@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2d7cd6" />
+    <title>SkyCraft – 3D Voxel Game</title>
+    <script type="module" crossorigin src="./game.js"></script>
+    <link rel="stylesheet" crossorigin href="./index.css">
+  </head>
+  <body>
+    <div id="browser-support" hidden role="alert" style="position:fixed;inset:0;z-index:10;display:none;align-items:center;justify-content:center;padding:24px;background:#102c45;color:white;text-align:center;font:bold 18px Arial,sans-serif">
+      SkyCraft benötigt WebGL 1 oder WebGL 2. WebGPU ist nicht erforderlich. Bitte aktualisiere Microsoft Edge oder installiere Google Chrome und aktiviere die Hardwarebeschleunigung.
+    </div>
+    <script nomodule>
+      var warning = document.getElementById("browser-support");
+      if (warning) {
+        warning.hidden = false;
+        warning.style.display = "flex";
+      }
+    </script>
+    <div id="root"></div>
+    <div id="sg-intro" style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;align-items:center;justify-content:center;transition:opacity .6s,background-color .5s;cursor:pointer">
+      <svg viewBox="0 0 680 560" style="width:min(100vw,121vh);height:min(82vw,100vh);display:block;overflow:visible" aria-label="Sky Games">
+        <defs><g id="sg-pshape">
+          <path d="M0,-110 C14,-110 16,-90 16,-70 L14,95 L0,115 L-14,95 L-16,-70 C-16,-90 -14,-110 0,-110Z"/>
+          <path d="M-15,-15 L-112,38 L-112,54 L-15,28Z M15,-15 L112,38 L112,54 L15,28Z"/>
+          <path d="M-12,82 L-50,106 L-50,116 L-12,102Z M12,82 L50,106 L50,116 L12,102Z"/>
+        </g></defs>
+        <rect x="150" y="70" width="380" height="380" rx="70" fill="#000" stroke="#fff" stroke-width="16"/>
+        <text x="340" y="516" text-anchor="middle" style="fill:#fff;font:700 32px Arial,Helvetica,sans-serif;letter-spacing:1px">Sky Games</text>
+        <g id="sg-plane" transform="translate(800,700) rotate(-45) scale(0.95)">
+          <g fill="#fff" stroke="#8A8A8A" stroke-width="7">
+            <rect x="-62" y="-2" width="14" height="26" rx="7"/><rect x="-92" y="14" width="14" height="26" rx="7"/>
+            <rect x="48" y="-2" width="14" height="26" rx="7"/><rect x="78" y="14" width="14" height="26" rx="7"/>
+          </g>
+          <use href="#sg-pshape" fill="#fff" stroke="#8A8A8A" stroke-width="7" stroke-linejoin="round"/>
+        </g>
+        <g id="sg-sun" transform="translate(264,184) scale(1)">
+          <circle r="42" fill="#FFB000" stroke="#F59E00" stroke-width="6"/>
+          <g id="sg-rays" stroke="#F59E00" stroke-width="6" stroke-linecap="round"></g>
+        </g>
+        <g id="sg-loader" opacity="0">
+          <text x="586" y="528" text-anchor="end" style="fill:#5C3600;font:18px Arial,Helvetica,sans-serif">Loading</text>
+          <g transform="translate(616,522)">
+            <circle r="14" fill="none" stroke="#5C3600" stroke-opacity="0.2" stroke-width="4"/>
+            <path d="M0,-14 A14,14 0 0 1 14,0" fill="none" stroke="#5C3600" stroke-width="4" stroke-linecap="round">
+              <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="0.9s" repeatCount="indefinite"/>
+            </path>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <script>
+    (function(){
+      var root=document.getElementById("sg-intro"),ns="http://www.w3.org/2000/svg",rays=document.getElementById("sg-rays");
+      for(var k=0;k<16;k++){var a=k*Math.PI/8,m=k%2===0,r1=m?54:56,r2=m?76:68,l=document.createElementNS(ns,"line");
+        l.setAttribute("x1",(Math.cos(a)*r1).toFixed(1));l.setAttribute("y1",(Math.sin(a)*r1).toFixed(1));
+        l.setAttribute("x2",(Math.cos(a)*r2).toFixed(1));l.setAttribute("y2",(Math.sin(a)*r2).toFixed(1));rays.appendChild(l);}
+      var plane=document.getElementById("sg-plane"),sun=document.getElementById("sg-sun"),loader=document.getElementById("sg-loader");
+      var T_FLY=1800,T_PAUSE=500,T_GROW=2600,T_FADE=500,TOTAL=T_FLY+T_PAUSE+T_GROW,HOLD=700,t0=null,done=false;
+      function eo(t){return 1-Math.pow(1-t,3)} function ei(t){return t*t*t}
+      function finish(){if(done)return;done=true;root.style.opacity="0";root.style.pointerEvents="none";setTimeout(function(){root.remove()},650)}
+      function frame(now){if(done)return;if(t0===null)t0=now;var e=now-t0,p=eo(Math.min(e/T_FLY,1));
+        plane.setAttribute("transform","translate("+(800-352*p).toFixed(1)+","+(700-330*p).toFixed(1)+") rotate(-45) scale(0.95)");
+        var g=Math.max(0,Math.min((e-T_FLY-T_PAUSE)/T_GROW,1));sun.setAttribute("transform","translate(264,184) scale("+(1+17*ei(g)).toFixed(3)+")");
+        if(g>0.72)root.style.backgroundColor="#FFB000";
+        loader.setAttribute("opacity",Math.max(0,Math.min((e-TOTAL)/T_FADE,1)).toFixed(2));
+        if(e<TOTAL+T_FADE+HOLD)requestAnimationFrame(frame);else finish();}
+      root.addEventListener("click",finish);window.addEventListener("keydown",function(ev){if(!done&&(ev.code==="Escape"||ev.code==="Space"||ev.code==="Enter"))finish()});
+      requestAnimationFrame(frame);
+    })();
+    </script>
+
+
+  </body>
+</html>

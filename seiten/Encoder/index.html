@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Text Encoder</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+
+<div class="max-w-4xl mx-auto px-5 py-10">
+
+    <h1 class="text-3xl font-semibold mb-8 text-center">
+        Text Encoder
+    </h1>
+
+    <div class="box rounded-xl p-1 grid grid-cols-3 gap-1 mb-3">
+        <button data-mode="plain" class="tab active rounded-lg py-3">Standard</button>
+        <button data-mode="code" class="tab rounded-lg py-3">Mit Code</button>
+        <button data-mode="time" class="tab rounded-lg py-3">Zeitlich</button>
+    </div>
+
+    <p id="modeInfo" class="text-sm text-zinc-400 mb-4 min-h-5"></p>
+
+    <!-- CODE -->
+    <div id="codeWrap" class="hidden mb-4">
+        <div class="relative">
+            <input
+                id="code"
+                type="password"
+                maxlength="100"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                class="box w-full rounded-xl p-4 pr-14"
+                placeholder="Code (bis 100 Zeichen)"
+            >
+            <button
+                id="toggleCode"
+                type="button"
+                aria-label="Code anzeigen"
+                class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            >
+                <svg id="eyeOpen" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg id="eyeClosed" class="hidden" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3l18 18"/>
+                    <path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2"/>
+                    <path d="M6.6 6.6A17.3 17.3 0 0 0 2 12s3.5 7 10 7a10.6 10.6 0 0 0 5.4-1.4"/>
+                    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+                </svg>
+            </button>
+        </div>
+        <p id="codeMeter" class="text-sm mt-2 text-zinc-400 min-h-5"></p>
+    </div>
+
+    <!-- ZEIT -->
+    <div id="timeWrap" class="hidden mb-4">
+        <div class="grid sm:grid-cols-2 gap-3">
+            <select id="duration" class="box w-full rounded-xl p-4">
+                <option value="auto">1 Stunde (Standard)</option>
+                <option value="3">3 Stunden</option>
+                <option value="6">6 Stunden</option>
+                <option value="12">12 Stunden</option>
+                <option value="24">1 Tag</option>
+                <option value="72">3 Tage</option>
+                <option value="168">7 Tage</option>
+                <option value="720">30 Tage</option>
+                <option value="custom">Eigener Zeitpunkt…</option>
+            </select>
+            <input
+                id="customTime"
+                type="datetime-local"
+                class="box w-full rounded-xl p-4 hidden"
+            >
+        </div>
+    </div>
+
+    <textarea
+        id="input"
+        class="box w-full h-52 rounded-xl p-4 text-left"
+        placeholder="Text eingeben oder verschlüsselten Text einfügen..."
+    ></textarea>
+
+    <button
+        id="runBtn"
+        class="w-full mt-4 py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition"
+    >
+        Ausführen
+    </button>
+
+    <p id="status" class="text-sm mt-3 min-h-5 text-zinc-400"></p>
+
+    <textarea
+        id="output"
+        readonly
+        class="box w-full h-64 rounded-xl p-4 mt-2 text-left"
+        placeholder="Ergebnis..."
+    ></textarea>
+
+    <button
+        id="copyBtn"
+        class="w-full mt-4 py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition"
+    >
+        Kopieren
+    </button>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>

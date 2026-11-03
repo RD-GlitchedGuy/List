@@ -1,0 +1,53 @@
+body{
+    background:#121212;
+    color:#f5f5f5;
+    font-family:Inter,system-ui,sans-serif;
+}
+
+.box{
+    background:#18181b;
+    border:1px solid #2a2a2a;
+}
+
+textarea{
+    resize:none;
+}
+
+textarea:focus,
+input:focus,
+select:focus{
+    outline:none;
+    border-color:#404040;
+}
+
+select,
+input[type="datetime-local"]{
+    color-scheme:dark;
+}
+
+.tab{
+    color:#a1a1aa;
+    transition:background .15s,color .15s;
+}
+
+.tab:hover{
+    color:#f5f5f5;
+}
+
+.tab.active{
+    background:#3f3f46;
+    color:#fff;
+}
+
+button:disabled{
+    opacity:.5;
+    cursor:wait;
+}
+
+::-webkit-scrollbar{
+    width:8px;
+}
+
+::-webkit-scrollbar-thumb{
+    background:#333;
+}
