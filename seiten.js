@@ -115,7 +115,14 @@ const SEITEN = [
     bild: "Schach.png",
     zeigeInfo: false
   },
-
+  {
+    id: "sky_swing",
+    kategorie: "games",
+    name: "Sky Swing",
+    ordner: "Sky-Swing",
+    bild: "seiten/Sky-Swing/preview.jpg",
+    zeigeInfo: false
+  },
 
   // ================= NÜTZLICHE WEBSEITEN =================
   {
