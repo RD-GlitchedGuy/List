@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Sky Swing</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{"imports":{"three":"./js/lib/three.module.min.js","three/addons/":"./js/lib/addons/"}}</script>
+</head>
+<body>
+<div id="intro">
+  <svg id="introSvg" viewBox="0 0 680 560" aria-label="Sky Games">
+    <defs>
+      <g id="pshape">
+        <path d="M0,-110 C14,-110 16,-90 16,-70 L14,95 L0,115 L-14,95 L-16,-70 C-16,-90 -14,-110 0,-110Z"/>
+        <path d="M-15,-15 L-112,38 L-112,54 L-15,28Z M15,-15 L112,38 L112,54 L15,28Z"/>
+        <path d="M-12,82 L-50,106 L-50,116 L-12,102Z M12,82 L50,106 L50,116 L12,102Z"/>
+      </g>
+    </defs>
+    <rect x="150" y="70" width="380" height="380" rx="70" fill="#000" stroke="#fff" stroke-width="16"/>
+    <text x="340" y="516" text-anchor="middle" fill="#fff" style="font:500 32px system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:1px">Sky Games</text>
+    <g id="introPlane" transform="translate(800,700) rotate(-45) scale(0.95)">
+      <g fill="#fff" stroke="#8A8A8A" stroke-width="7">
+        <rect x="-62" y="-2" width="14" height="26" rx="7"/><rect x="-92" y="14" width="14" height="26" rx="7"/>
+        <rect x="48" y="-2" width="14" height="26" rx="7"/><rect x="78" y="14" width="14" height="26" rx="7"/>
+      </g>
+      <use href="#pshape" fill="#fff" stroke="#8A8A8A" stroke-width="7" stroke-linejoin="round"/>
+    </g>
+    <g id="introSun" transform="translate(264,184) scale(1)">
+      <circle r="42" fill="#FFB000" stroke="#F59E00" stroke-width="6"/>
+      <g id="introRays" stroke="#F59E00" stroke-width="6" stroke-linecap="round"/>
+    </g>
+  </svg>
+  <div id="introLoad"><span>Loading</span><i></i></div>
+</div>
+<script>
+  // Sky-Games-Logo: Flugzeug fliegt in den Rahmen, Pause, Sonne füllt den Bildschirm, dann "Loading" unten links.
+  (function () {
+    var ns = 'http://www.w3.org/2000/svg', rays = document.getElementById('introRays');
+    for (var k = 0; k < 16; k++) {
+      var a = k * Math.PI / 8, main = k % 2 === 0, r1 = main ? 54 : 56, r2 = main ? 76 : 68, l = document.createElementNS(ns, 'line');
+      l.setAttribute('x1', (Math.cos(a) * r1).toFixed(1)); l.setAttribute('y1', (Math.sin(a) * r1).toFixed(1));
+      l.setAttribute('x2', (Math.cos(a) * r2).toFixed(1)); l.setAttribute('y2', (Math.sin(a) * r2).toFixed(1));
+      rays.appendChild(l);
+    }
+    var intro = document.getElementById('intro'), svg = document.getElementById('introSvg'), plane = document.getElementById('introPlane'), sun = document.getElementById('introSun'), load = document.getElementById('introLoad');
+    var T_FLY = 1800, T_PAUSE = 500, T_GROW = 2600, T_FADE = 500, TOTAL = T_FLY + T_PAUSE + T_GROW;
+    var easeOut = function (t) { return 1 - Math.pow(1 - t, 3); }, easeIn = function (t) { return t * t * t; };
+    var t0 = null, done = false, ready = false, gone = false;
+    function maxScale() { // Sonne soll den ganzen Bildschirm bedecken, egal wie breit
+      var r = svg.getBoundingClientRect(), u = r.width / 680, cx = r.left + 264 * u, cy = r.top + 184 * u;
+      var far = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, innerHeight - cy), Math.hypot(innerWidth - cx, innerHeight - cy));
+      return Math.max(18, far / u / 42 + 1);
+    }
+    function hide() { if (gone) return; gone = true; intro.classList.add('out'); setTimeout(function () { intro.remove(); }, 700); }
+    function frame(now) {
+      if (gone) return;
+      if (t0 === null) t0 = now;
+      var e = now - t0, p = easeOut(Math.min(e / T_FLY, 1));
+      plane.setAttribute('transform', 'translate(' + (800 + (448 - 800) * p).toFixed(1) + ',' + (700 + (370 - 700) * p).toFixed(1) + ') rotate(-45) scale(0.95)');
+      var g = Math.max(0, Math.min((e - T_FLY - T_PAUSE) / T_GROW, 1));
+      sun.setAttribute('transform', 'translate(264,184) scale(' + (1 + (maxScale() - 1) * easeIn(g)).toFixed(3) + ')');
+      load.style.opacity = Math.max(0, Math.min((e - TOTAL) / T_FADE, 1)).toFixed(2);
+      if (e >= TOTAL + T_FADE) { done = true; if (ready) hide(); }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    intro.addEventListener('click', function () { if (ready) hide(); else { done = true; t0 = performance.now() - TOTAL - T_FADE; } });
+    window.introReady = function () { ready = true; if (done) hide(); };
+  })();
+</script>
+<div id="impact"></div>
+<div id="hud">
+  <div id="stats" class="panel"><div id="speed">0 km/h</div><div>Höhe <b id="alt">0</b> m</div><div id="cntRow">Sky-Funken <b id="cnt">0/40</b></div><div id="timer">0:00</div><div id="netRow"></div></div>
+  <canvas id="mini" width="320" height="320"></canvas>
+  <div id="scoreBox"><div id="score">0</div><div id="combo"></div></div>
+  <div id="nav" class="panel"><svg id="arrow" viewBox="0 0 24 24"><path d="M12 2 20 21 12 16 4 21Z" fill="#ff7a1a"/></svg><span id="navTxt">–</span></div>
+  <div id="raceBox" class="panel"><div id="raceTime">0:00.0</div><div><span id="raceLbl">Ring</span> <b id="raceRing">0/0</b></div><div id="raceBest"></div></div>
+  <div id="helpBox" class="panel"></div>
+  <div id="move"></div>
+  <div id="count"></div>
+  <div id="cross"></div>
+</div>
+
+<div id="touch">
+  <div id="joy"></div><div id="look"></div>
+  <div id="stick"><div id="knob"></div></div>
+  <div class="tb" id="bSwing" data-k="swing">SCHWIN&shy;GEN</div>
+  <div class="tb" id="bJump" data-k="jump">SPRUNG</div>
+  <div class="tb" id="bDbl" data-k="dbl">DOPPEL</div>
+  <div class="tb" id="bZip" data-k="zip">ZIP</div>
+  <div class="tb" id="bDive" data-k="dive">STURZ</div>
+  <div class="tb" id="bSling" data-k="sling">KATA&shy;PULT</div>
+  <div class="tb" id="bTrick" data-k="trick">TRICK</div>
+  <div class="tb" id="bPause" data-k="pause">II</div>
+</div>
+
+<div id="menu">
+  <div class="card panel">
+    <h2>Pause</h2>
+    <div class="mbtns">
+      <button class="mb primary" data-a="resume">Weiterspielen</button>
+      <button class="mb" data-a="free">Freies Schwingen</button>
+      <button class="mb" data-a="race">Ring-Rennen <span class="bestTxt"></span></button>
+      <button class="mb" data-a="courier">Kurier-Missionen</button>
+      <button class="mb" data-a="chase">Verfolgungsjagd</button>
+      <button class="mb online" data-a="online">Online spielen</button>
+      <button class="mb" data-a="respawn">Zurück zum Start-Dach</button>
+    </div>
+    <div class="setgrid">
+      <label>Grafik</label><div class="seg" data-s="quality"><button data-v="niedrig">Niedrig</button><button data-v="mittel">Mittel</button><button data-v="hoch">Hoch</button></div>
+      <label>Tageszeit</label><div class="seg" data-s="time"><button data-v="zyklus">Ablauf</button><button data-v="tag">Tag</button><button data-v="abend">Abend</button><button data-v="nacht">Nacht</button></div>
+      <label>Kamera-Tempo</label><input type="range" id="sSens" min="0.3" max="2.5" step="0.05">
+      <label>Y umkehren</label><div class="seg" data-s="invertY"><button data-v="false">Aus</button><button data-v="true">An</button></div>
+      <label>Lautstärke</label><input type="range" id="sVol" min="0" max="1" step="0.05">
+      <label>Vollbild</label><div class="seg" data-s="fullscreen"><button data-v="true">An</button><button data-v="false">Aus</button></div>
+    </div>
+    <h3 class="sect">Anzug</h3>
+    <div class="suit">
+      <label>Anzug<input type="color" data-c="base"></label><label>Seitenteile<input type="color" data-c="panel"></label>
+      <label>Akzente<input type="color" data-c="acc"></label><label>Helm<input type="color" data-c="dark"></label><label>Visier<input type="color" data-c="visor"></label>
+    </div>
+    <div class="presets">
+      <button data-p="sky">Sky</button><button data-p="eis">Eis</button><button data-p="smaragd">Smaragd</button><button data-p="nacht">Nachtfalter</button><button data-p="gold">Gold</button>
+    </div>
+    <p class="hint">Esc / P / Start-Taste öffnet und schließt dieses Menü. Im Vollbild schließt Strg+W den Tab nicht; Esc gedrückt halten verlässt das Vollbild.</p>
+  </div>
+</div>
+
+<div id="online">
+  <div class="card panel">
+    <h2>Online</h2>
+    <div class="orow"><label for="oName">Dein Name</label><input id="oName" maxlength="16"></div>
+    <div id="oStatus">Offline</div>
+    <div id="oRoom"></div>
+    <div class="mbtns" id="oMake">
+      <button class="mb primary" id="oPub">Öffentlichen Raum erstellen</button>
+      <button class="mb" id="oPriv">Privaten Raum erstellen (nur mit Code)</button>
+      <div class="orow"><input id="oCode" placeholder="CODE" maxlength="5" autocomplete="off"><button class="mb" id="oJoin">Beitreten</button></div>
+    </div>
+    <h3 class="sect">Öffentliche Lobby</h3>
+    <div id="oRooms"><p class="hint">Noch keine offenen Räume.</p></div>
+    <div class="mbtns" style="margin-top:14px">
+      <button class="mb" id="oLeave">Raum verlassen</button>
+      <button class="mb" id="oBack">Zurück zum Spiel</button>
+    </div>
+  </div>
+</div>
+
+<div id="start">
+  <div class="card panel">
+    <div class="studio"><img id="logo" src="assets/logo.svg" alt="">Sky Games präsentiert</div>
+    <h1>SKY SWING</h1>
+    <p class="sub">Schwing dich an Fäden durch eine Stadt aus Stahl, Glas und Backstein. Sammle Sky-Funken, mach Tricks für Kombo-Punkte oder jag die Bestzeit im Ring-Rennen.</p>
+    <div class="cols">
+      <div><h3>TASTATUR + MAUS</h3>WASD laufen · Maus Kamera · Shift Sprint<br>Linke Maustaste / E halten: Schwingen<br>R oder Shift+Schwingen: Doppelschwung<br>Leertaste: Sprung · in der Luft Netz-Sprint · am Faden Absprung<br>Rechte Maustaste / Q: Zip-Punkt<br>A/D + Schwingen: Eckenschwung · X (+ Richtung): Trick<br>F halten: Katapult · C: Sturzflug<br>Esc / P: Menü · H: Hilfe · Mausrad: Zoom</div>
+      <div><h3>CONTROLLER</h3>Linker Stick laufen · rechter Stick Kamera<br>RT halten: Schwingen · RB: Doppelschwung<br>A: Sprung / Netz-Sprint / Absprung<br>LB: Zip-Punkt · Y (+ Stick): Trick · Stick seitlich + RT: Eckenschwung<br>X halten: Katapult · B oder LT: Sturzflug<br>L3 Sprint · Start: Menü · Select: Start-Dach</div>
+      <div><h3>TOUCH</h3>Linke Hälfte: Stick (ganz rausziehen = Sprint)<br>Rechte Hälfte wischen: Kamera<br>Buttons rechts für alle Moves, II oben rechts für das Menü<br><br><h3>PUNKTE</h3>Alles in der Luft baut eine Kombo auf. Erst beim Landen werden die Punkte gutgeschrieben, ein Sturz ins Wasser kostet sie.</div>
+    </div>
+    <div id="fileWarn">Du hast die Datei direkt per Doppelklick geöffnet. Browser blockieren dabei JavaScript-Module, deshalb bleibt alles schwarz. Lade den ganzen Ordner auf GitHub hoch und öffne die GitHub-Pages-Adresse, oder starte im Ordner einen lokalen Server (z.&nbsp;B. <code>python -m http.server</code>) und öffne <code>localhost:8000</code>.</div>
+    <div class="startBtns">
+      <button id="play" class="big" data-mode="free">LÄDT …</button>
+      <button id="playRace" class="big alt" data-mode="race">RING-RENNEN <span class="bestTxt"></span></button>
+      <button id="playCourier" class="big alt2">KURIER</button>
+      <button id="playChase" class="big alt2">VERFOLGUNG</button>
+      <button id="playOnline" class="big alt3">ONLINE SPIELEN</button>
+    </div>
+  </div>
+</div>
+<div id="err"></div>
+
+<script>
+  if (location.protocol === 'file:') document.getElementById('fileWarn').style.display = 'block';
+  function showErr(msg){ var e=document.getElementById('err'); e.style.display='block'; e.textContent += msg + '\n'; }
+  addEventListener('error', function(e){ showErr('Fehler: ' + (e.message || e) + (e.filename ? '  (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '')); });
+  addEventListener('unhandledrejection', function(e){ showErr('Fehler: ' + (e.reason && e.reason.message || e.reason)); });
+</script>
+<script src="js/lib/peerjs.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
