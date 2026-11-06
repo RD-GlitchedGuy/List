@@ -26,6 +26,18 @@
   </div>
 </div>
 
+<!-- DOWNLOAD-AUSWAHL: erscheint nur, wenn es mehrere Systeme gibt -->
+<div id="download-modal" class="modal-overlay hidden" onclick="if(event.target===this)schliesseDownload()">
+  <div class="modal-card">
+    <h2 id="download-titel">Download</h2>
+    <p>Für welches System?</p>
+    <div class="download-wahl" id="download-wahl"></div>
+    <div class="modal-buttons">
+      <button class="modal-btn secondary" onclick="schliesseDownload()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <!-- SUPPORT: runder Button unten links, öffnet den Support-Chat (Ordner support/) -->
 <a id="support-btn" class="support-btn" href="support/index.html" aria-label="Support-Chat öffnen" title="Support">
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.6"/><rect x="17" y="13" width="4" height="6" rx="1.6"/><path d="M20 19v.5a2.5 2.5 0 0 1-2.5 2.5H14"/><rect x="10.5" y="20.5" width="4" height="3" rx="1.5"/></svg>
@@ -36,6 +48,7 @@
   <div class="tab-container" role="tablist">
     <button class="tab-btn active" id="tab-games" onclick="setKategorie('games')">Games</button>
     <button class="tab-btn" id="tab-useful" onclick="setKategorie('useful')">Nützliche Webseiten</button>
+    <button class="tab-btn" id="tab-downloads" onclick="setKategorie('downloads')">Downloads</button>
   </div>
 
   <h1 id="titel">Games</h1>
@@ -52,6 +65,7 @@
 
 <!-- Liste aller Seiten: zum Hinzufügen/Ändern nur seiten.js bearbeiten -->
 <script src="seiten.js"></script>
+<script src="downloads.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

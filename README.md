@@ -65,3 +65,17 @@ Dann `http://localhost:8000` öffnen.
   Liegt der Chat woanders, die Adresse in `index.html` (`id="support-btn"`) und in `support/config.js` (`listeUrl`) ändern.
 - **Logo:** Das Logo (`logo.svg`, Tab-Icon `favicon.svg` / `favicon.ico`) erscheint nur im Browser-Tab. Neue Seiten bekommen es mit dieser Zeile im `<head>` (Pfad je nach Tiefe anpassen):
   `<link rel="icon" href="../../favicon.svg" type="image/svg+xml">`
+
+## Downloads-Tab
+
+```
+downloads/
+  apps/
+    SkyLauncher/        ein Ordner pro App
+      Windows/          ein Ordner pro System (Windows, Mac, Linux, ...)
+        SkyLauncher.zip
+  bilder/
+    SkyLauncher.png     Bild = gleicher Name wie der App-Ordner
+```
+
+Neue App: Ordner nach `downloads/apps/`, Bild nach `downloads/bilder/`. Auf GitHub Pages taucht sie automatisch auf. Gibt es nur ein System, lädt der Klick sofort; bei mehreren fragt ein Fenster. Name, Text und Reihenfolge kann man in `downloads.js` festlegen.

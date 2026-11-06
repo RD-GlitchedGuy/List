@@ -124,7 +124,7 @@ main{max-width:680px;margin:0 auto;padding:32px 20px 64px}
 /* Kompakter & zentrierter Tab-Umschalter */
 .tab-container {
   display: flex;
-  max-width: 320px;
+  max-width: 440px;
   margin: 0 auto 24px;
   background: var(--card);
   border: 1px solid var(--line);
@@ -222,3 +222,17 @@ footer a:hover { filter: brightness(1.2); text-decoration: underline; }
 .support-btn:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 @media (max-width:480px){.support-btn{left:16px;bottom:16px;width:52px;height:52px}}
 @media (prefers-reduced-motion:reduce){.support-btn{transition:none}}
+
+/* Downloads-Tab */
+.dl-pfeil{flex:none;width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;color:var(--muted);transition:color .2s ease,border-color .2s ease}
+.dl-pfeil svg,.dl-option svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+li:hover .dl-pfeil{color:var(--accent);border-color:var(--accent)}
+li.leer{display:block;padding:18px;color:var(--muted);text-align:center}
+li.leer:hover{transform:none;border-color:var(--line);box-shadow:none}
+.download-wahl{display:grid;gap:8px;margin:0 0 20px;text-align:left}
+.dl-option{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-family:inherit;font-size:.95rem;cursor:pointer;transition:border-color .2s ease}
+.dl-option:hover{border-color:var(--accent)}
+.dl-system{font-weight:700}
+.dl-datei{color:var(--muted);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dl-option svg{margin-left:auto;flex:none;color:var(--muted)}
+@media (max-width:480px){.tab-btn{font-size:.78rem;padding:6px 6px}}
