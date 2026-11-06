@@ -40,10 +40,10 @@ const SYSTEM_REIHENFOLGE = ["Windows", "Mac", "macOS", "Linux", "iOS", "Android"
 
 const DOWNLOADS = [
   {
-    ordner: "SkyLauncher-setup",
+    ordner: "SkyLauncher",
     name: "Sky Launcher",
     bild: "SkyLauncher.png",
     beschreibung: "Sky-Launcher",
-    dateien: { Windows: ["SkyLauncher.zip"] }
+    dateien: { Windows: ["SkyLauncher-setup.zip"] }
   },
 ];
