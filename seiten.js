@@ -134,15 +134,6 @@ const SEITEN = [
 
   // ================= NÜTZLICHE WEBSEITEN =================
   {
-    id: "live-chat",
-    kategorie: "useful",
-    name: "Live Chat",
-    ordner: "live-chat",
-    bild: "chat-icon.png",
-    zeigeInfo: true,
-    infoText: "Achtung: Alle Inhalte auf dieser Website sind öffentlich einsehbar und nicht privat!"
-  },
-  {
     id: "detect-ai",
     kategorie: "useful",
     name: "Detect.ai",
