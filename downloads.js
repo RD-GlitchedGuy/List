@@ -46,4 +46,11 @@ const DOWNLOADS = [
     beschreibung: "Sky-Launcher",
     dateien: { Windows: ["SkyLauncher-setup.zip"] }
   },
+  {
+    ordner: "SkyPcConsol",
+    name: "SkyPcConsol",
+    bild: "SkyPcConsol.png",
+    beschreibung: "SkyPcConsol ist eine Konsole die vereinfacht Sachen an PC zu machen",
+    dateien: { Windows: ["SkyPcConsol.bat"] }
+  },
 ];
