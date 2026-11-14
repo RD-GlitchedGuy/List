@@ -1,7 +1,7 @@
 // Inventar: Alt (bzw. Steuerkreuz hoch) halten. Anklicken = ausrüsten/markieren, zweiter Klick tauscht, Rechtsklick legt ab.
 import * as THREE from 'three';
 import { G } from './state.js';
-import { down, hit, mouse, analog, touchMode, bindLabel, padConnected, virtDown } from './input.js';
+import { down, hit, mouse, analog, touchMode, bindLabel, padConnected, virtDown, padState } from './input.js';
 import { DEFS, AMMO, stat } from './items.js';
 import { RARITIES } from './state.js';
 import { switchSlot } from './actors.js';
@@ -48,14 +48,14 @@ function clickAt(t) {
   const a = G.player, o = itemOf(t);
   if (!o) { mark = null; return; }
   if (o.act === 'drop') { if (mark) dropThing(mark); mark = null; return; }
-  if (o.act === 'close') { virtDown.delete('inventory'); const b = document.querySelector('.b-inv'); if (b) b.classList.remove('on'); return; }
+  if (o.act === 'close') { virtDown.delete('inventory'); padState.inv = false; const b = document.querySelector('.b-inv'); if (b) b.classList.remove('on'); return; }
   if (o.ammo) { mark = same(mark, o) ? null : o; return; }
   if (mark && mark.slot !== undefined && !same(mark, o) && mark.slot > 0 && o.slot > 0) {   // tauschen
     const i = mark.slot, j = o.slot;
     [a.inv[i], a.inv[j]] = [a.inv[j], a.inv[i]];
     if (a.slot === i) a.slot = j; else if (a.slot === j) a.slot = i;
     if (!a.inv[a.slot]) a.slot = 0;
-    setHeldModel(a); sfx('pickup'); mark = null; return;
+    setHeldModel(a); sfx('equip'); mark = null; return;
   }
   if (same(mark, o)) { mark = null; return; }
   if (o.item || o.slot === 0) switchSlot(a, o.slot);
@@ -77,18 +77,20 @@ function dropThing(o) {
     setHeldModel(a);
   }
   if (same(mark, o)) mark = null;
-  sfx('pickup');
+  sfx('drop');
 }
 
 export function updateInventory(dt) {
   const a = G.player;
   const can = a && a.alive && !G.ended && !G.victory && a.state !== 'bus' && a.state !== 'car';
-  const want = can && down('inventory');
+  if (!can) padState.inv = false;
+  const want = can && (down('inventory') || padState.inv);
   if (want !== open) {
     open = want; G.invOpen = open; mark = null;
     root.classList.toggle('hidden', !open);
     document.body.classList.toggle('inv-open', open);
     if (open) { cur.x = innerWidth / 2; cur.y = innerHeight / 2; }
+    sfx(open ? 'invopen' : 'invclose');
   }
   if (!open) return;
   // Zeiger: Maus (gefangen) oder rechter Stick
@@ -102,6 +104,7 @@ export function updateInventory(dt) {
     const el = document.elementFromPoint(cur.x, cur.y);
     cursor.style.visibility = '';
     const t = el && el.closest ? el.closest('[data-slot],[data-ammo],[data-act]') : null;
+    if (t && t !== hover) sfx('hover');
     hover = t;
     if (hit('fire') || (padConnected && hit('jump'))) clickAt(t);
     if (hit('aim') || hit('padUse')) dropAt(t);

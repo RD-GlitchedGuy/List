@@ -9,7 +9,7 @@ import { puff, muzzleFlash, explosion, shockRing } from './effects.js';
 import { sfx } from './audio.js';
 import { isClient, net, req } from './net.js';
 import { rayCars } from './cars.js';
-import { objectAtHit, destroyObject, wobbleObject } from './world.js';
+import { objectAtHit, destroyObject, wobbleObject, objMaterial } from './world.js';
 
 const DEG = Math.PI / 180;
 const tracerGeo = new THREE.BoxGeometry(0.035, 0.035, 1);
@@ -65,8 +65,10 @@ export function startReload(a) {
   const d = DEFS[it.key];
   if (d.type !== 'gun' || it.mag >= d.mag || a.reloadT > 0 || a.ammo[d.ammo] <= 0) return;
   a.reloadT = stat(it).reload; a.reloadMax = a.reloadT; a.burstLeft = 0;
-  if (a === G.player) sfx('reload');
+  if (a === G.player) sfx(RELOAD_SND[d.cls] || 'reload');
 }
+const RELOAD_SND = { shotgun: 'reloadshotgun', pistol: 'reloadpistol', sniper: 'reloadsniper', rocket: 'reloadrocket' };
+const soundAt = a => (a === G.player ? 0 : a.pos.distanceTo(G.camera.position));
 
 // aimOrigin/aimDir: Zielstrahl (Kamera beim Spieler, Augen beim Bot)
 export function trigger(a, aimOrigin, aimDir, fresh) {
@@ -117,7 +119,7 @@ function shoot(a, it, aimOrigin, aimDir) {
   a.kickVis = Math.min(0.5, (a.kickVis || 0) + d.kick * 0.18);
   if (a === G.player) emit('recoil', d.recoil * DEG * (ads ? 0.75 : 1), (Math.random() - 0.5) * d.recoil * 0.35 * DEG);
   const dist = a === G.player ? 0 : a.pos.distanceTo(G.camera.position);
-  sfx(d.cls, dist);
+  sfx(d.snd || d.cls, dist);
 }
 
 function flash(a) {
@@ -131,14 +133,14 @@ export function remoteShots(a, origin, dirs, key, rarity) {
   const it = { key, rarity }, d = stat(it);
   for (const dir of dirs) spawnProjectile(a, d, it, origin.clone(), dir.clone().normalize(), false);
   a.kickVis = Math.min(0.5, (a.kickVis || 0) + d.kick * 0.18);
-  flash(a); sfx(d.cls, a.pos.distanceTo(G.camera.position));
+  flash(a); sfx(d.snd || d.cls, a.pos.distanceTo(G.camera.position));
 }
 // Client: Schüsse anderer nur anzeigen
 export function visualShots(a, origin, dirs, key) {
   const it = { key, rarity: 0 }, d = stat(it);
   for (const dir of dirs) spawnProjectile(a, d, it, origin.clone(), dir.clone().normalize(), true);
   a.kickVis = Math.min(0.5, (a.kickVis || 0) + d.kick * 0.18);
-  flash(a); sfx(d.cls, a.pos.distanceTo(G.camera.position));
+  flash(a); sfx(d.snd || d.cls, a.pos.distanceTo(G.camera.position));
 }
 
 function spawnProjectile(owner, d, it, origin, dir, visual) {
@@ -167,6 +169,10 @@ export function updateProjectiles(dt) {
     if (carT >= 0 && (!wall || carT < wall.distance)) wall = { distance: carT, point: p.prev.clone().addScaledVector(nd, carT) };
     const wallS = wall ? wall.distance / len : 2;
     const hit = hitActors(p.prev, p.pos, p.owner);
+    if (!p.whizzed && p.owner !== G.player && p.cls !== 'rocket') {      // Kugel fliegt knapp am Ohr vorbei
+      const cam = G.camera.position, t = THREE.MathUtils.clamp(cam.clone().sub(p.prev).dot(nd), 0, len);
+      if (p.prev.clone().addScaledVector(nd, t).distanceToSquared(cam) < 6) { p.whizzed = true; sfx('whiz'); }
+    }
     let done = p.life <= 0 || p.pos.y < -25;
     if (hit && hit.s < wallS) {
       const at = p.prev.clone().addScaledVector(step, hit.s);
@@ -181,7 +187,7 @@ export function updateProjectiles(dt) {
       done = true;
     } else if (wall) {
       if (p.splash && !p.visual) explode(wall.point, p.splash, p.dmg, p.owner, p.key);
-      else if (!p.splash) puff(wall.point, '#c9c2b0', 3, 0.06, 2);
+      else if (!p.splash) { puff(wall.point, '#c9c2b0', 3, 0.06, 2); sfx('impact', wall.point.distanceTo(G.camera.position)); }
       done = true;
     }
     // Leuchtspur
@@ -216,10 +222,10 @@ export function explode(pos, radius, dmg, owner, key) {
 function swing(a, origin, dir) {
   a.fireCd = 1 / DEFS.pickaxe.rate; a.swingT = 0.4;
   if (isClient()) {
-    req.melee(origin, dir); sfx('pickaxe');
+    req.melee(origin, dir); sfx('swing');
     // sofortiges Feedback, Schaden rechnet der Host
     const o = meleeObject(a, origin, dir);
-    if (o) { wobbleObject(o.obj); puff(o.point, '#b8a88a', 5, 0.08, 3); if (a === G.player) emit('recoil', 0.012, 0); }
+    if (o) { wobbleObject(o.obj); puff(o.point, '#b8a88a', 5, 0.08, 3); sfx('hit' + objMaterial(o.obj)); if (a === G.player) emit('recoil', 0.012, 0); }
     return;
   }
   remoteMelee(a, origin, dir);
@@ -243,11 +249,12 @@ export function remoteMelee(a, origin, dir) {
     if (o) {
       hitObject(o.obj, 50);
       puff(o.point, '#b8a88a', 5, 0.08, 3);
+      sfx('hit' + objMaterial(o.obj), soundAt(a));
       if (a === G.player) { emit('objHit', o.obj); emit('recoil', 0.012, 0); }
       else if (a.isRemote) net.objHitFor(a, o.obj);
     }
   }
-  sfx('pickaxe', a === G.player ? 0 : a.pos.distanceTo(G.camera.position));
+  sfx('swing', soundAt(a));
 }
 
 // Gebäude/Bäume/Steine abbauen (Host bzw. Solo)
@@ -262,7 +269,7 @@ export function breakObject(o) {
   const c = o.pos.clone(); c.y += 1.5;
   puff(c, '#9a8c74', 22, 0.35, 6);
   puff(c, '#6f6a62', 12, 0.25, 4);
-  sfx('boom', c.distanceTo(G.camera.position) + 60);
+  sfx(o.tree ? 'treefall' : 'break', c.distanceTo(G.camera.position));
   destroyObject(o);
 }
 
@@ -281,14 +288,15 @@ function useItem(a, it, origin, dir) {
   const d = DEFS[it.key];
   switch (d.type) {
     case 'heal': if (a.hp >= d.cap) { if (a === G.player) emit('toast', 'Gesundheit bereits voll'); return; }
-      a.channel = { slot: a.slot, t: 0, total: d.time, label: d.name }; return;
+      a.channel = { slot: a.slot, t: 0, total: d.time, label: d.name }; sfx(it.key === 'medkit' ? 'medkit' : 'bandage', soundAt(a)); return;
     case 'shield': if (a.shield >= d.cap) { if (a === G.player) emit('toast', 'Schild bereits voll'); return; }
-      a.channel = { slot: a.slot, t: 0, total: d.time, label: d.name }; return;
+      a.channel = { slot: a.slot, t: 0, total: d.time, label: d.name }; sfx('drink', soundAt(a)); return;
     case 'throw': {
       const from = a.pos.clone(); from.y += 1.6;
       const v = dir.clone().multiplyScalar(22); v.y += 5;
       if (isClient()) { req.throw(it.key, from, v); addThrowable(it.key, from, v, a, true); }
       else { addThrowable(it.key, from, v, a, false); net.throwV(it.key, from, v); }
+      sfx('pin', soundAt(a)); sfx('throw', soundAt(a));
       a.fireCd = 0.6; consume(a, it); return;
     }
     case 'place': {
@@ -296,6 +304,7 @@ function useItem(a, it, origin, dir) {
       p.y = groundBelow(new THREE.Vector3(p.x, a.pos.y + 2, p.z), 8);
       if (Math.abs(p.y - a.pos.y) > 3) { if (a === G.player) emit('toast', 'Hier nicht platzierbar'); return; }
       if (isClient()) req.pad(p, a.yaw); else { addPad(p, a.yaw); net.pad(p, a.yaw); }
+      sfx('padplace', soundAt(a));
       consume(a, it); a.fireCd = 0.5; return;
     }
     case 'grapple': {
@@ -303,13 +312,13 @@ function useItem(a, it, origin, dir) {
       if (!hit) { if (a === G.player) emit('toast', 'Zu weit weg'); a.fireCd = 0.3; return; }
       a.grapple = { point: hit.point.clone(), t: 0 };
       a.state = 'grapple'; a.fallImmune = true;
-      consume(a, it); a.fireCd = 0.5; sfx('launch', a === G.player ? 0 : 50); return;
+      consume(a, it); a.fireCd = 0.5; sfx('grapple', soundAt(a)); sfx('reel', soundAt(a)); return;
     }
     case 'rift': {
       puff(a.pos.clone().add(new THREE.Vector3(0, 1, 0)), '#6a4abf', 16, 0.2, 5);
       a.pos.y = Math.max(groundBelow(a.pos), 0) + 95;
       a.vel.set(0, 0, 0); a.state = 'skydive'; a.fallImmune = true;
-      consume(a, it); a.fireCd = 0.5; if (a === G.player) sfx('launch'); return;
+      consume(a, it); a.fireCd = 0.5; sfx('rift', soundAt(a)); return;
     }
   }
 }
@@ -338,6 +347,7 @@ export function updateThrowables(dt) {
       if (hit) {
         if (t.key === 'shockwave') { if (!t.visual) detonate(t, hit.point); G.scene.remove(t.mesh); G.throwables.splice(i, 1); continue; }
         const n = hit.face ? hit.face.normal : new THREE.Vector3(0, 1, 0);
+        if (t.vel.length() > 4) sfx('bounce', t.pos.distanceTo(G.camera.position));
         t.vel.reflect(n).multiplyScalar(0.35);
         t.pos.copy(hit.point).addScaledVector(n, 0.14);
       } else t.pos.add(step);
@@ -381,7 +391,6 @@ export function updateActorCombat(a, dt) {
       const d = DEFS[it.key];
       const take = Math.min(d.mag - it.mag, a.ammo[d.ammo]);
       it.mag += take; a.ammo[d.ammo] -= take;
-      if (a === G.player) sfx('reload');
     }
   }
   if (it && DEFS[it.key].type === 'gun' && it.mag === 0 && a.reloadT <= 0 && a.fireCd <= 0 && a.burstLeft <= 0 && a.equipT <= 0) startReload(a);

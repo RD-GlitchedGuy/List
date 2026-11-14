@@ -42,6 +42,7 @@ export function switchSlot(a, s) {
   a.reloadT = 0; a.channel = null; a.burstLeft = 0;
   a.equipT = 0.22;
   setHeldModel(a);
+  if (a === G.player) sfx(s === 0 ? 'equippickaxe' : 'equip');
 }
 
 export function cycleSlot(a, dir) {

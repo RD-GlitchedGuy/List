@@ -78,7 +78,7 @@ function toScreen(p) {
 
 export function updateHud(dt) {
   const a = G.player;
-  if (hit('map')) { bigMap = !bigMap; el['bigmap-wrap'].classList.toggle('hidden', !bigMap); el['bigmap-wrap'].querySelector('.maphint').textContent = bindLabel('map') + ' – Karte schließen'; }
+  if (hit('map')) { bigMap = !bigMap; sfx(bigMap ? 'mapopen' : 'invclose'); el['bigmap-wrap'].classList.toggle('hidden', !bigMap); el['bigmap-wrap'].querySelector('.maphint').textContent = bindLabel('map') + ' – Karte schließen'; }
   // FPS
   fpsT += dt; fpsN++; if (fpsT > 0.5) { el.fps.textContent = Math.round(fpsN / fpsT) + ' FPS'; fpsT = fpsN = 0; }
   bannerT -= dt; if (bannerT <= 0) el.banner.style.opacity = 0;

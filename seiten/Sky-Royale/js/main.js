@@ -25,7 +25,8 @@ import { updateEffects } from './effects.js';
 import { initHud, updateHud, message, banner } from './hud.js';
 import { initInventory, updateInventory } from './inv.js';
 import { raycast } from './physics.js';
-import { initAudio } from './audio.js';
+import { initAudio, stopLoops } from './audio.js';
+import { updateFoley } from './foley.js';
 import { NET, isClient, isHost, isMP, hostLobby, joinLobby, lobbyNames, createRemoteActors, sendStart, sendStartTo, netUpdate, net, req,
   queuePublic, leaveNet, netActorAdd, netActorRemove, makePuppet, applySync } from './net.js';
 
@@ -285,6 +286,7 @@ function resetRound() {
   document.body.classList.remove('ended', 'victory', 'inv-open');
   for (const id of ['end', 'victory', 'pause', 'inv']) $(id).classList.add('hidden');
   $('feed').innerHTML = '';
+  stopLoops();
 }
 
 // Hauptmenü: Verbindung trennen, Welt zurücksetzen
@@ -452,6 +454,7 @@ on('eliminated', (t, killer) => {
   if (G.phase !== 'bus' && G.phase !== 'match') return;
   if (G.ended) updateEndBar();
   if (t === G.player) {
+    sfx('defeat');
     const mate = mateOf(t);
     G.spectate = mate && mate.alive ? mate : killer && killer !== t && killer.alive ? killer : null;
     const kn = killer && killer !== t ? killer.name : null, r = G.round;
@@ -541,7 +544,10 @@ addEventListener('keydown', e => {
 canvas.addEventListener('click', () => { if (spectating()) nextSpectate(); });
 on('eliminated', t => { if (t === G.player) t.deathTime = G.time; });
 canvas.addEventListener('touchstart', () => { if (spectating()) nextSpectate(); }, { passive: true });
-on('elimFx', p => elimEffect(p));
+on('elimFx', p => { elimEffect(p); if (G.camera) sfx('death', p.distanceTo(G.camera.position)); });
+// Knöpfe im Menü klicken hörbar
+addEventListener('click', e => { if (e.target.closest && e.target.closest('button')) { initAudio(); sfx('click'); } }, true);
+addEventListener('mouseover', e => { if (e.target.closest && e.target.closest('button') && !e.target.closest('button').contains(e.relatedTarget)) sfx('hover'); });
 
 // ---------- Hauptschleife ----------
 const clock = new THREE.Clock();
@@ -580,6 +586,7 @@ function update(dt) {
     a.model.rotation.y = a.yaw;
     if (a.model.visible && a.pos.distanceToSquared(camera.position) < 220 * 220) animateCharacter(a, dt);
   }
+  updateFoley(dt);
   if (!client) for (const c of G.cars) if (!c.driver && (Math.abs(c.speed) > 0.05 || c.vy)) { c.speed *= Math.exp(-dt * 1.5); stepCar(c, dt); }
   updateStorm(dt);
   updateProjectiles(dt);

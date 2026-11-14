@@ -30,7 +30,7 @@ export function updateMovement(a, dt, input) {
     case 'glide': {
       a.vel.y += (-6 - a.vel.y) * Math.min(1, dt * 6);
       approachXZ(a, wishX * 15, wishZ * 15, dt * 1.6);
-      if (input.jump && above() > GLIDE_CANCEL_MIN) { a.state = 'skydive'; a.diving = true; if (a.isPlayer) sfx('jump'); }
+      if (input.jump && above() > GLIDE_CANCEL_MIN) { a.state = 'skydive'; a.diving = true; if (a.isPlayer) sfx('gliderclose'); }
       break;
     }
     case 'launch': {
@@ -83,7 +83,7 @@ export function updateMovement(a, dt, input) {
   } else if (a.onGround && a.state !== 'grapple') {
     const wasAir = a.state !== 'ground';
     if (wasAir && a.impact > 21 && !a.fallImmune) damage(a, (a.impact - 21) * 7, null, { ignoreShield: true, cause: 'Sturz' });
-    if (wasAir && a.isPlayer && a.impact > 6) sfx('land');
+    if (wasAir && a.isPlayer && a.impact > 6) sfx(a.impact > 21 && !a.fallImmune ? 'fallhurt' : 'land');
     if (!(a.state === 'launch' && a.vel.y > 0)) { a.state = 'ground'; a.fallImmune = false; a.diving = false; }
   } else if (a.state === 'ground') {
     a.state = 'air';
@@ -92,10 +92,10 @@ export function updateMovement(a, dt, input) {
   // Startrampen, Sprungfelder, Geysire
   if (a.padCd <= 0 && (a.state === 'ground' || a.state === 'air')) {
     for (const p of G.pads) if (near(a, p.pos, p.r, 1.0)) return launch(a, p.power);
-    for (const p of G.jumpPads) if (near(a, p, 1.5, 1.2)) return launch(a, 44);
-    for (const p of G.geysers) if (near(a, p, 2.0, 3.5)) return launch(a, 50);
+    for (const p of G.jumpPads) if (near(a, p, 1.5, 1.2)) return launch(a, 44, 'spring');
+    for (const p of G.geysers) if (near(a, p, 2.0, 3.5)) return launch(a, 50, 'geyser');
   }
-  if (a.state === 'swim') for (const p of G.geysers) if (near(a, p, 2.2, 3.5)) return launch(a, 50);
+  if (a.state === 'swim') for (const p of G.geysers) if (near(a, p, 2.2, 3.5)) return launch(a, 50, 'geyser');
 }
 
 // Sprint + Ducken = Rutschen
@@ -105,7 +105,7 @@ export function startSlide(a) {
   const k = Math.max(hs, SPEED.slide) / hs;
   a.vel.x *= k; a.vel.z *= k;
   a.slideT = 1.1; a.crouch = true; a.sprint = false;
-  if (a.isPlayer) sfx('land');
+  sfx('slide', a.isPlayer ? 0 : a.pos.distanceTo(G.camera.position));
   return true;
 }
 
@@ -157,11 +157,11 @@ function near(a, p, r, h) {
   return dx * dx + dz * dz < r * r && a.pos.y - p.y > -0.6 && a.pos.y - p.y < h;
 }
 
-export function launch(a, power) {
+export function launch(a, power, snd = 'launch') {
   a.vel.set(a.vel.x * 0.3, power, a.vel.z * 0.3);
   a.state = 'launch'; a.fallImmune = true; a.onGround = false; a.padCd = 1; a.slideT = 0; a.diving = false; a.ladder = null;
   a.pos.y += 0.4;
-  sfx('launch', a.isPlayer ? 0 : a.pos.distanceTo(G.camera.position));
+  sfx(snd, a.isPlayer ? 0 : a.pos.distanceTo(G.camera.position));
 }
 
 function approachXZ(a, tx, tz, k) {

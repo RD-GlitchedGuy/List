@@ -54,6 +54,7 @@ export function updateBus(dt) {
   b.model.position.y += Math.sin(b.t * 1.3) * 0.35;
   b.model.rotation.y = Math.atan2(-b.dir.x, -b.dir.z);
   b.model.rotation.z = Math.sin(b.t * 0.9) * 0.03 - b.steer * 0.12;
+  if (!b.doors && b.t > DOOR_DELAY && G.player && G.player.state === 'bus') sfx('busdoor');
   b.doors = b.t > DOOR_DELAY;
   for (const a of G.actors) if (a.state === 'bus') a.pos.copy(b.pos);
   const off = Math.hypot(b.pos.x, b.pos.z) > HALF + 15 && b.t > dur * 0.4;
@@ -79,10 +80,10 @@ export function exitBus(a) {
 export function thankDriver(a) {
   if (a.thanked || !G.bus || a.state !== 'bus') return;
   a.thanked = true;
-  if (isClient()) { req.thank(); sfx('ping'); return; }
+  if (isClient()) { req.thank(); sfx('horn', 0, { vol: 0.5, rate: 1.15 }); return; }
   emit('feed', a === G.player ? 'Du hast dich beim Busfahrer bedankt' : `${a.name} hat sich beim Busfahrer bedankt`, a === G.player);
   net.feed(`${a.name} hat sich beim Busfahrer bedankt`, a);
-  if (a === G.player) sfx('ping');
+  if (a === G.player) sfx('horn', 0, { vol: 0.5, rate: 1.15 });
   if (!a.isBot && !G.bus.driver && Math.random() < WHEEL_CHANCE) giveWheel(a);
 }
 

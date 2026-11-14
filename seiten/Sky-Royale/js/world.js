@@ -129,7 +129,7 @@ export async function loadWorld(url, onProgress) {
     let o = objByKey.get(k);
     if (!o) {
       const hp = OBJ_HP[name] || (TREES.has(name) ? 150 : 220);
-      o = { id: G.objects.length, name, pos: new THREE.Vector3(x, y, z), parts: [], ranges: [], hp, max: hp, alive: true, wobble: 0 };
+      o = { id: G.objects.length, name, tree: TREES.has(name), pos: new THREE.Vector3(x, y, z), parts: [], ranges: [], hp, max: hp, alive: true, wobble: 0 };
       objByKey.set(k, o); G.objects.push(o);
     }
     return o;
@@ -217,6 +217,10 @@ export async function loadWorld(url, onProgress) {
 const NO_DESTROY = new Set(['Gelaende', 'Wasser', 'Spawnpunkt', 'Sprungfeld', 'Geysir', 'Truhe', 'Munitionskiste', 'Höhle', 'Busch', 'Herbstbusch', 'Pinker Busch', 'Pilze']);
 const OBJ_HP = { 'Kleines Haus': 500, 'Großes Haus': 800, 'Laden': 600, 'Scheune': 650, 'Holzhütte': 400, 'Stein': 250, 'Felsen': 400,
   'Leuchtturm': 1200, 'Stufentempel': 1500, 'Pagode': 900, 'Wachturm': 450, 'Laterne': 60, 'Zaun': 60, 'Lagerfeuer': 40 };
+
+// Material für Sounds (Abbauen, Schritte)
+const STONE = new Set(['Stein', 'Felsen', 'Leuchtturm', 'Stufentempel']), METAL = new Set(['Laterne']);
+export const objMaterial = o => !o ? 'stone' : o.tree ? 'wood' : STONE.has(o.name) ? 'stone' : METAL.has(o.name) ? 'metal' : 'wood';
 
 // Welches Objekt gehört zu diesem Raycast-Treffer?
 export function objectAtHit(hit) {

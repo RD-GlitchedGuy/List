@@ -52,7 +52,7 @@ export function stepCar(c, dt) {
     const nx = c.pos.x + fw.x * dist, nz = c.pos.z + fw.z * dist;
     if (!blocked && heightAt(nx + fw.x * c.half.z * Math.sign(dist), nz + fw.z * c.half.z * Math.sign(dist)) < WATER_Y - 0.6) blocked = true;
     if (blocked) {
-      if (Math.abs(c.speed) > 10 && c.driver === G.player) sfx('land');
+      if (Math.abs(c.speed) > 8) sfx('carcrash', c.driver === G.player ? 0 : c.pos.distanceTo(G.camera.position), { vol: Math.min(1, Math.abs(c.speed) / 25) });
       c.speed = -c.speed * 0.25;
     } else { c.pos.x = nx; c.pos.z = nz; }
   }
@@ -114,12 +114,13 @@ export function nearestCar(a, range = 3.6) {
 export function enterCar(a, c) {
   c.driver = a; a.car = c; a.state = 'car'; a.vel.set(0, 0, 0);
   a.crouch = false; a.slideT = 0; a.ads = false; a.channel = null; a.reloadT = 0;
-  if (a === G.player) sfx('pickup');
+  sfx('cardoor', a === G.player ? 0 : c.pos.distanceTo(G.camera.position));
 }
 
 export function exitCar(a) {
   const c = a.car; if (!c) return;
   c.driver = null; a.car = null;
+  sfx('cardoor', a === G.player ? 0 : c.pos.distanceTo(G.camera.position));
   const side = new THREE.Vector3(Math.cos(c.yaw), 0, -Math.sin(c.yaw));
   for (const s of [-1, 1]) {
     const p = c.pos.clone().addScaledVector(side, s * (c.half.x + 0.8));

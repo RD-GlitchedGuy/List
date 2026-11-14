@@ -58,9 +58,10 @@ export const hit = action => virtHit.has(action) || (binds[action] || []).some(c
 // A Springen · B Ducken/Rutschen · X Nachladen/Benutzen · Y Spitzhacke · LT Zielen · RT Schießen
 // LB/RB Slot wechseln · L3 Sprinten · Steuerkreuz hoch Inventar (halten) / runter Tanzen / links Pingen · View Karte · Menü Pause
 const PAD = { 0: 'jump', 1: 'crouch', 2: 'padUse', 3: 'pickaxe', 4: 'prevSlot', 5: 'nextSlot', 6: 'aim', 7: 'fire',
-  8: 'map', 9: 'pause', 10: 'sprint', 11: 'crouch', 12: 'inventory', 13: 'emote', 14: 'ping', 15: 'nextSlot' };
+  8: 'map', 9: 'pause', 10: 'sprint', 11: 'crouch', 12: 'padInv', 13: 'emote', 14: 'ping', 15: 'nextSlot' };
 const padPrev = new Set(); let padSprint = false;
 export let padConnected = false;
+export const padState = { inv: false };   // Steuerkreuz hoch: Inventar an/aus
 const dz = v => Math.abs(v) < 0.16 ? 0 : (v - Math.sign(v) * 0.16) / 0.84;
 export function pollGamepad() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -75,6 +76,7 @@ export function pollGamepad() {
     analog.lookX = rx * Math.abs(rx); analog.lookY = ry * Math.abs(ry);
     if (now.has('sprint') && !padPrev.has('sprint')) padSprint = !padSprint;   // L3 schaltet Sprint, bis der Stick losgelassen wird
     if (!analog.pad) padSprint = false;
+    if (now.has('padInv') && !padPrev.has('padInv')) padState.inv = !padState.inv;
   } else { analog.mx = analog.my = analog.lookX = analog.lookY = 0; analog.pad = false; padSprint = false; }
   for (const a of padPrev) if (!now.has(a)) virtDown.delete(a);
   for (const a of now) { if (!padPrev.has(a)) virtHit.add(a); virtDown.add(a); }

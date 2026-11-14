@@ -46,7 +46,8 @@ export function openChest(chest, actor) {
   if (chest.opened) return;
   chest.opened = true;
   hideChest(chest);
-  if (actor === G.player || (!actor && chest.pos.distanceTo(G.player.pos) < 30)) sfx('chest', actor ? 0 : chest.pos.distanceTo(G.player.pos));
+  const snd = chest.type === 'chest' ? 'chest' : 'ammobox';
+  sfx(snd, actor === G.player ? 0 : chest.pos.distanceTo(G.camera.position));
   if (!actor || isClient()) return;          // Client: nur verstecken, Loot kommt vom Host
   net.chest(chest);
   const items = chest.type === 'chest' ? rollChest() : rollAmmoBox();
@@ -98,7 +99,7 @@ export function pickup(a, drop) {
   if (rest === false) { if (a === G.player) emit('toast', 'Inventar voll – wähle einen Slot zum Tauschen'); return false; }
   removeLoot(drop);
   if (rest) spawnLoot(rest, a.pos.clone().add(new THREE.Vector3(0, 0.3, 0)), true);
-  if (a === G.player) sfx('pickup');
+  if (a === G.player) sfx(pickupSound(drop.item));
   return true;
 }
 
@@ -155,3 +156,6 @@ export function updateLoot(dt) {
     }
   }
 }
+
+// Aufheben klingt je nach Gegenstand anders
+export const pickupSound = it => it.ammo ? 'ammo' : DEFS[it.key] && DEFS[it.key].type === 'gun' ? 'pickupgun' : 'pickup';

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { G, emit } from './state.js';
 import { createActor, eliminate, damage, feedText, removeActor, setPlace } from './actors.js';
-import { spawnLoot, removeLoot, openChest, takeItem } from './loot.js';
+import { spawnLoot, removeLoot, openChest, takeItem, pickupSound } from './loot.js';
 import { setHeldModel } from './models.js';
 import { remoteShots, visualShots, remoteMelee, remoteThrow, visualThrow, addPad, breakObject } from './combat.js';
 import { wobbleObject, destroyObject } from './world.js';
@@ -290,7 +290,7 @@ function clientHandle(d, onChange) {
     case 'grant': {
       const rest = takeItem(G.player, d.item);
       if (rest) req.drop(rest, G.player.pos);
-      sfx('pickup'); break;
+      sfx(pickupSound(d.item)); break;
     }
     case 'deny': { const l = G.loot.find(x => x.id === d.id); if (l) l.pending = false; break; }
     case 'dealt': { const t = byId(d.id); if (t) emit('dealt', { target: t, amount: d.a, head: d.h, shield: d.s, pos: d.p ? V(d.p) : null }); break; }
