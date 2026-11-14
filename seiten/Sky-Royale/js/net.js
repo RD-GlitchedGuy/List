@@ -13,7 +13,7 @@ import { createItem } from './items.js';
 import { explosion, shockRing } from './effects.js';
 import { sfx } from './audio.js';
 
-export const NET = { role: 'solo', peer: null, conns: [], host: null, name: 'Spieler', code: '', snapT: 0, sendT: 0, started: false };
+export const NET = { role: 'solo', peer: null, conns: [], host: null, name: 'Spieler', code: '', snapT: 0, sendT: 0, started: false, lastData: 0, rtt: 0, pingT: 0 };
 export const isClient = () => NET.role === 'client';
 export const isHost = () => NET.role === 'host';
 export const isMP = () => NET.role !== 'solo';
@@ -27,7 +27,8 @@ const byId = id => G.actors.find(a => a.id === id);
 // ---------------- Lobby ----------------
 function newPeer(id) {
   if (!window.Peer) throw new Error('PeerJS konnte nicht geladen werden');
-  return id ? new window.Peer(id, { debug: 1 }) : new window.Peer({ debug: 1 });
+  const cfg = Object.assign({ debug: 1 }, window.PEER_CONFIG || {});   // PEER_CONFIG: optional eigener PeerJS-Server
+  return id ? new window.Peer(id, cfg) : new window.Peer(cfg);
 }
 
 export function hostLobby(name, onChange) {
@@ -90,6 +91,8 @@ export function sendStart() {
 
 // ---------------- Host: Nachrichten der Clients ----------------
 function hostHandle(entry, d) {
+  entry.lastData = performance.now();
+  if (d.t === 'ping') { entry.conn.send({ t: 'pong', ts: d.ts }); entry.rtt = d.rtt || 0; return; }
   const a = entry.actor; if (!a) return;
   switch (d.t) {
     case 'st': {
@@ -183,7 +186,9 @@ export function leaveCar(a) {
 
 // ---------------- Client: Nachrichten vom Host ----------------
 function clientHandle(d, onChange) {
+  NET.lastData = performance.now();
   switch (d.t) {
+    case 'pong': NET.rtt = performance.now() - d.ts; break;
     case 'lobby': NET.lobby = d.names; onChange(); break;
     case 'full': onChange('Lobby ist voll oder läuft schon'); break;
     case 'start': emit('netStart', d); break;
@@ -286,18 +291,23 @@ export function netUpdate(dt) {
     if (!a.netPos || a === G.player || (isHost() && !a.isRemote)) continue;
     if (!a.alive) continue;
     if (a.pos.distanceToSquared(a.netPos) > 100) a.pos.copy(a.netPos); else a.pos.lerp(a.netPos, k);
-    a.yaw += wrap(a.netYaw - a.yaw) * k; a.pitch += (a.netPitch - a.pitch) * k;
+    if (Number.isFinite(a.netYaw)) a.yaw += wrap(a.netYaw - a.yaw) * k;
+    if (Number.isFinite(a.netPitch)) a.pitch += (a.netPitch - a.pitch) * k;
+    if (!Number.isFinite(a.yaw)) a.yaw = 0;
+    if (!Number.isFinite(a.pitch)) a.pitch = 0;
   }
   if (isClient()) for (const c of G.cars) {
     if (!c.netPos || c.driver === G.player) continue;
     if (c.pos.distanceToSquared(c.netPos) > 64) c.pos.copy(c.netPos); else c.pos.lerp(c.netPos, k);
-    c.yaw += wrap(c.netYaw - c.yaw) * k; placeCar(c);
+    if (Number.isFinite(c.netYaw)) c.yaw += wrap(c.netYaw - c.yaw) * k; placeCar(c);
   }
 
   if (isHost()) {
     NET.snapT -= dt;
     if (NET.snapT <= 0 && NET.conns.length) { NET.snapT = 1 / 15; broadcast(makeSnap()); }
   } else {
+    NET.pingT -= dt;
+    if (NET.pingT <= 0) { NET.pingT = 2; toHost({ t: 'ping', ts: performance.now(), rtt: Math.round(NET.rtt) }); }
     NET.sendT -= dt;
     if (NET.sendT <= 0) {
       NET.sendT = 1 / 20;
@@ -325,3 +335,21 @@ function makeSnap() {
 }
 
 const wrap = x => { while (x > Math.PI) x -= Math.PI * 2; while (x < -Math.PI) x += Math.PI * 2; return x; };
+
+// Verbindungsanzeige im HUD
+export function netStatus() {
+  if (!isMP()) return null;
+  const now = performance.now();
+  if (isHost()) {
+    if (!NET.conns.length) return { text: 'Host · keine Mitspieler verbunden', bad: true };
+    const parts = NET.conns.map(c => {
+      const ago = (now - (c.lastData || now)) / 1000;
+      return ago > 3 ? `${c.name}: keine Daten seit ${Math.round(ago)} s` : `${c.name}: ${Math.round(c.rtt || 0)} ms`;
+    });
+    return { text: 'Host · ' + parts.join(' · '), bad: NET.conns.some(c => now - (c.lastData || now) > 3000) };
+  }
+  const ago = (now - NET.lastData) / 1000;
+  if (!NET.host || !NET.host.open) return { text: 'Keine Verbindung zum Host', bad: true };
+  if (ago > 3) return { text: `Keine Daten vom Host seit ${Math.round(ago)} s – ist das Host-Fenster offen und sichtbar?`, bad: true };
+  return { text: `Verbunden mit Host · ${Math.round(NET.rtt)} ms`, bad: false };
+}

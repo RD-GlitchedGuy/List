@@ -42,7 +42,7 @@ export function updatePlayer(dt) {
   a.pitch = THREE.MathUtils.clamp(a.pitch - (mouse.dy * s + analog.lookY * ps * 0.8) * (G.settings.invertY ? -1 : 1), -1.45, 1.45);
   view.recoil *= Math.exp(-dt * 7);
   camState.interact = null; camState.car = null;
-  if (!a.alive) return;
+  if (!a.alive || G.victory) return;
 
   if (a.state === 'bus') {
     if (hit('jump') && G.bus && G.bus.doors) exitBus(a);
@@ -142,6 +142,21 @@ export function updateCamera(dt) {
   if (a.emoteT > 0 && a.state === 'ground') { back = 4.2; side = 0; up = 0.5; }
   const it = current(a), d = it ? DEFS[it.key] : null;
 
+  if (G.victory && a.alive) {
+    // Sieg: Kamera kreist langsam um die tanzende Figur
+    const t = G.victory.t, e = Math.min(t, 7);
+    const ang = a.yaw + Math.PI * 0.85 + t * 0.32, r = 3.0 + e * 0.45, h = 0.4 + e * 0.32;
+    pivot.copy(a.pos).add(tmp.set(0, 1.25, 0));
+    want.set(pivot.x + Math.sin(ang) * r, pivot.y + h, pivot.z + Math.cos(ang) * r);
+    const off = want.clone().sub(pivot), len = off.length(); off.divideScalar(len);
+    const hit = raycast(pivot, off, len + 0.2);
+    if (hit) want.copy(pivot).addScaledVector(off, Math.max(0.6, hit.distance - 0.3));
+    cam.position.lerp(want, Math.min(1, dt * 4));
+    cam.lookAt(pivot);
+    a.model.visible = true; camState.scoped = false;
+    setFov(62, dt);
+    return;
+  }
   if (!a.alive && G.spectate && G.spectate.alive) {
     // Zuschauen: Kamera hinter dem beobachteten Spieler
     const t = G.spectate;

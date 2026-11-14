@@ -1,7 +1,7 @@
 // Bewegung für Spieler und Bots: Laufen, Sprinten, Schleichen, Sliden, Schwimmen, Skydiven, Gleiten
 import * as THREE from 'three';
 import { G, GRAVITY, WATER_Y } from './state.js';
-import { moveActor, inDeepWater, groundBelow } from './physics.js';
+import { moveActor, inDeepWater, groundBelow, raycast } from './physics.js';
 import { heightAt } from './world.js';
 import { damage } from './actors.js';
 import { pushFromCars } from './cars.js';
@@ -64,8 +64,8 @@ export function updateMovement(a, dt, input) {
         const k = a.onGround ? 12 : 2.5;
         approachXZ(a, wishX * sp, wishZ * sp, dt * k);
       }
-      a.vel.y -= GRAVITY * dt;
-      climbLadders(a, wishX, wishZ);
+      if (!climbLadders(a, wishX, wishZ, input)) a.vel.y -= GRAVITY * dt;
+      else if (a.ladder) input = { ...input, jump: false };
       if (input.jump && a.onGround) { a.vel.y = 8.2; a.onGround = false; if (!a.slideT) a.crouch = false; if (a.isPlayer) sfx('jump'); }
     }
   }
@@ -78,6 +78,8 @@ export function updateMovement(a, dt, input) {
     if (!inDeepWater(a) && heightAt(a.pos.x, a.pos.z) > WATER_Y - 1.1) a.state = a.onGround ? 'ground' : 'air';
   } else if (a.state !== 'grapple' && a.state !== 'launch' && inDeepWater(a)) {
     a.state = 'swim'; a.fallImmune = false; a.vel.y = 0; a.slideT = 0; a.diving = false;
+  } else if (a.ladder) {
+    a.state = 'air'; a.fallImmune = true;
   } else if (a.onGround && a.state !== 'grapple') {
     const wasAir = a.state !== 'ground';
     if (wasAir && a.impact > 21 && !a.fallImmune) damage(a, (a.impact - 21) * 7, null, { ignoreShield: true, cause: 'Sturz' });
@@ -107,17 +109,47 @@ export function startSlide(a) {
   return true;
 }
 
-function climbLadders(a, wishX, wishZ) {
-  for (const l of G.ladders) {
-    const dx = a.pos.x - l.x, dz = a.pos.z - l.z;
-    if (dx * dx + dz * dz > 1.1 || a.pos.y < l.y0 || a.pos.y > l.top + 0.5) continue;
-    const tx = l.cx - l.x, tz = l.cz - l.z, tl = Math.hypot(tx, tz);
-    if ((wishX * tx + wishZ * tz) / tl < 0.3) continue;
-    if (a.pos.y < l.top) { a.vel.y = 5; a.vel.x = tx / tl * 1.2; a.vel.z = tz / tl * 1.2; }
-    else { a.vel.y = Math.max(a.vel.y, 2); a.vel.x = tx / tl * 4; a.vel.z = tz / tl * 4; }
-    a.slideT = 0;
-    break;
+// Leitern an den Wachtürmen: ranlaufen = festhalten, Richtung Turm = hoch, weg vom Turm = runter, Springen = loslassen.
+// Oben auf der Plattform zur Leiter laufen = über das Geländer auf die Leiter, unten im Turm zur Leiter = raus.
+function climbLadders(a, wishX, wishZ, input) {
+  if (a.isBot) return false;
+  if (a.ladder) {
+    const l = a.ladder, n = ladderNormal(l);
+    const toward = -(wishX * n.x + wishZ * n.z);
+    a.vel.x = (l.x + n.x * 0.6 - a.pos.x) * 10; a.vel.z = (l.z + n.z * 0.6 - a.pos.z) * 10;
+    a.vel.y = Math.abs(toward) > 0.2 ? Math.sign(toward) * 4.5 : 0;
+    a.slideT = 0; a.crouch = false;
+    if (input.jump) { a.ladder = null; a.vel.set(n.x * 4, 5, n.z * 4); return true; }
+    if (a.pos.y >= l.top - 0.1 && toward > 0.2) {          // oben angekommen: auf die Plattform
+      a.ladder = null;
+      const px = l.x - n.x * 1.25, pz = l.z - n.z * 1.25;
+      const hit = raycast(new THREE.Vector3(px, l.top + 0.6, pz), new THREE.Vector3(0, -1, 0), 3.5);
+      a.pos.set(px, hit ? hit.point.y + 0.05 : l.top + 0.25, pz); a.vel.set(-n.x * 1.5, 0, -n.z * 1.5); return true;
+    }
+    if ((a.onGround && toward < -0.2) || a.pos.y < l.y0 - 0.5) { a.ladder = null; return false; }
+    return true;
   }
+  for (const l of G.ladders) {
+    const n = ladderNormal(l);
+    const dx = a.pos.x - l.x, dz = a.pos.z - l.z, dist = Math.hypot(dx, dz);
+    const toward = -(wishX * n.x + wishZ * n.z);
+    const outside = dx * n.x + dz * n.z > 0;
+    // von außen an die Leiter laufen
+    if (dist < 1.15 && outside && toward > 0.3 && a.pos.y >= l.y0 && a.pos.y < l.top - 0.4) { a.ladder = l; return true; }
+    // oben auf der Plattform Richtung Leiter laufen -> über das Geländer auf die Leiter
+    if (dist < 1.7 && !outside && toward < -0.3 && a.pos.y > l.top - 1.9 && a.pos.y < l.top + 0.8) {
+      a.ladder = l; a.pos.set(l.x + n.x * 0.6, l.top - 0.4, l.z + n.z * 0.6); a.vel.set(0, 0, 0); return true;
+    }
+    // unten im Turmgerüst gefangen -> zur Leiter hin rauslaufen
+    if (dist < 1.9 && !outside && toward < -0.3 && a.pos.y < l.y0 + 2.2) {
+      a.pos.set(l.x + n.x * 0.75, a.pos.y + 0.2, l.z + n.z * 0.75); a.vel.set(n.x * 2, 0, n.z * 2); return false;
+    }
+  }
+  return false;
+}
+function ladderNormal(l) {
+  const ox = l.x - l.cx, oz = l.z - l.cz, ol = Math.hypot(ox, oz) || 1;
+  return { x: ox / ol, z: oz / ol };
 }
 
 function near(a, p, r, h) {
@@ -127,7 +159,7 @@ function near(a, p, r, h) {
 
 export function launch(a, power) {
   a.vel.set(a.vel.x * 0.3, power, a.vel.z * 0.3);
-  a.state = 'launch'; a.fallImmune = true; a.onGround = false; a.padCd = 1; a.slideT = 0; a.diving = false;
+  a.state = 'launch'; a.fallImmune = true; a.onGround = false; a.padCd = 1; a.slideT = 0; a.diving = false; a.ladder = null;
   a.pos.y += 0.4;
   sfx('launch', a.isPlayer ? 0 : a.pos.distanceTo(G.camera.position));
 }

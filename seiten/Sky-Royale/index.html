@@ -6,14 +6,37 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Sky Royale</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=10">
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
-    "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"
+    "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js",
+    "./js/actors.js": "./js/actors.js?v=10",
+    "./js/audio.js": "./js/audio.js?v=10",
+    "./js/bots.js": "./js/bots.js?v=10",
+    "./js/bus.js": "./js/bus.js?v=10",
+    "./js/cars.js": "./js/cars.js?v=10",
+    "./js/combat.js": "./js/combat.js?v=10",
+    "./js/effects.js": "./js/effects.js?v=10",
+    "./js/hud.js": "./js/hud.js?v=10",
+    "./js/input.js": "./js/input.js?v=10",
+    "./js/items.js": "./js/items.js?v=10",
+    "./js/loot.js": "./js/loot.js?v=10",
+    "./js/main.js": "./js/main.js?v=10",
+    "./js/models.js": "./js/models.js?v=10",
+    "./js/movement.js": "./js/movement.js?v=10",
+    "./js/net.js": "./js/net.js?v=10",
+    "./js/physics.js": "./js/physics.js?v=10",
+    "./js/player.js": "./js/player.js?v=10",
+    "./js/settings.js": "./js/settings.js?v=10",
+    "./js/sky.js": "./js/sky.js?v=10",
+    "./js/state.js": "./js/state.js?v=10",
+    "./js/storm.js": "./js/storm.js?v=10",
+    "./js/touch.js": "./js/touch.js?v=10",
+    "./js/world.js": "./js/world.js?v=10"
   }
 }
 </script>
@@ -34,6 +57,7 @@
   <div id="ping-layer"></div>
 
   <div id="feed"></div>
+  <div id="netinfo"></div>
 
   <div id="mapbox">
     <canvas id="minimap" width="250" height="250"></canvas>
@@ -93,6 +117,7 @@
     </div>
     <button id="btn-settings" class="ghost">Einstellungen &amp; Tastenbelegung</button>
     <div id="keyhelp"></div>
+    <div class="ver"><span id="ver">Version 10</span></div>
   </div>
 </div>
 
@@ -107,15 +132,14 @@
 
 <div id="settings" class="screen hidden"></div>
 
-<div id="end" class="screen hidden">
-  <div class="end-band">
-    <div id="end-place"></div>
-    <h2 id="end-title"></h2>
-    <div id="end-stats"></div>
-    <div class="row end-btns"><button id="btn-again">Nochmal spielen</button><button id="btn-spectate" class="ghost">Weiter zuschauen</button></div>
-  </div>
+<div id="victory" class="hidden"><div class="v1">#1</div><div class="v2">Victory Royale</div><div class="v3"></div></div>
+
+<div id="end" class="hidden">
+  <div class="end-left"><div id="end-place"></div><div id="end-title"></div><div id="end-watch"></div></div>
+  <div id="end-stats"></div>
+  <div class="end-btns"><button id="btn-spectate" class="ghost">Nächster Spieler</button><button id="btn-again">Nächstes Spiel</button></div>
 </div>
 
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=10"></script>
 </body>
 </html>

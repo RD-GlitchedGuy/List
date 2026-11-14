@@ -8,6 +8,7 @@ import { camState } from './player.js';
 import { interactLabel } from './loot.js';
 import { sfx } from './audio.js';
 import { hit, down, bindLabel } from './input.js';
+import { netStatus } from './net.js';
 
 const $ = id => document.getElementById(id);
 const el = {};
@@ -81,6 +82,7 @@ export function updateHud(dt) {
   // FPS
   fpsT += dt; fpsN++; if (fpsT > 0.5) { el.fps.textContent = Math.round(fpsN / fpsT) + ' FPS'; fpsT = fpsN = 0; }
   bannerT -= dt; if (bannerT <= 0) el.banner.style.opacity = 0;
+  if (fpsN === 0) { const ns = netStatus(); const ni = $('netinfo'); ni.textContent = ns ? ns.text : ''; ni.classList.toggle('bad', !!(ns && ns.bad)); }
   poiT -= dt; if (poiT <= 0) el['poi-banner'].style.opacity = 0;
   elimT -= dt; el['elim-pop'].style.opacity = elimT > 0 ? 1 : 0;
   objT -= dt; el.objhp.style.opacity = objT > 0 ? 1 : 0;

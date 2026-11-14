@@ -47,7 +47,8 @@ export function updateEffects(dt) {
     const k = u.life / u.max;
     if (u.boom) { p.scale.setScalar(u.r * (1 - k * k) + 0.3); p.material.opacity = k * 0.8; continue; }
     if (u.rise) { p.rotation.x += dt * 3; p.rotation.y += dt * 2; } else u.v.y -= 9 * dt;
-    p.position.addScaledVector(u.v, dt); p.scale.setScalar(u.s * k);
+    p.position.addScaledVector(u.v, dt);
+    if (!u.flat) p.scale.setScalar(u.s * k);
   }
 }
 
@@ -70,4 +71,17 @@ export function sparkle(pos) {
   p.scale.setScalar(0.05);
   p.userData = { v: new THREE.Vector3(0, 0.7, 0), life: 0.9, max: 0.9, s: 0.05, rise: true };
   G.scene.add(p); parts.push(p);
+}
+
+// Konfetti beim Sieg
+const CONF = ['#f2cf5a', '#3f86d4', '#e8ecf0', '#c95b3a', '#5fb34e'];
+export function confetti(center) {
+  for (let i = 0; i < 4; i++) {
+    const p = new THREE.Mesh(geo, m(CONF[(Math.random() * CONF.length) | 0]));
+    p.position.set(center.x + (Math.random() - 0.5) * 10, center.y + 5 + Math.random() * 5, center.z + (Math.random() - 0.5) * 10);
+    p.scale.set(0.12, 0.02, 0.07);
+    p.rotation.set(Math.random() * 6, Math.random() * 6, 0);
+    p.userData = { v: new THREE.Vector3((Math.random() - 0.5) * 0.8, -1.4 - Math.random(), (Math.random() - 0.5) * 0.8), life: 4, max: 4, s: 0.12, rise: true, flat: true };
+    G.scene.add(p); parts.push(p);
+  }
 }

@@ -57,15 +57,32 @@ button.ghost:hover { background: #38465a; }
 .opt b { width: 70px; text-align: right; }
 .opt.tog input { width: 18px; height: 18px; accent-color: #e6c14d; }
 
-/* Ende */
-#end { background: rgba(10, 16, 26, .55); }
-.end-band { width: 100%; padding: 34px 0 26px; text-align: center; background: rgba(20, 28, 40, .94); border-top: 2px solid #e6c14d; border-bottom: 2px solid #e6c14d; }
-#end-place { font: italic 800 30px var(--cond); color: #e6c14d; }
-#end-title { font: italic 900 74px/1 var(--cond); text-transform: uppercase; letter-spacing: 1px; color: #fff; margin: 4px 0 10px; text-shadow: 0 3px 0 rgba(0,0,0,.35); }
+/* Ende: Leiste unten, Zuschauen läuft weiter */
+#end { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; display: flex; align-items: center; gap: 28px; padding: 14px 28px;
+  background: rgba(14, 20, 30, .9); border-top: 2px solid #e6c14d; animation: barin .35s ease-out; }
+@keyframes barin { from { transform: translateY(100%); } }
+.end-left { min-width: 280px; }
+#end-place { font: italic 800 22px var(--cond); color: #e6c14d; }
+#end-title { font: italic 900 34px/1 var(--cond); text-transform: uppercase; color: #fff; }
 #end.win #end-title { color: #f2cf5a; }
-#end-stats { display: flex; justify-content: center; gap: 36px; margin: 6px 0 16px; font-size: 14px; color: #c8d2de; }
-#end-stats b { display: block; font: italic 800 28px var(--cond); color: #fff; }
-.end-btns { width: 420px; margin: 0 auto; }
+#end-watch { font-size: 13px; color: #b9c2cc; margin-top: 4px; }
+#end-stats { display: flex; gap: 26px; flex: 1; font-size: 12px; color: #aeb8c4; }
+#end-stats b { display: block; font: italic 800 24px var(--cond); color: #fff; }
+.end-btns { display: flex; gap: 8px; width: 380px; }
+.end-btns button { margin: 0; }
+
+/* Victory-Royale-Animation */
+#victory { position: fixed; left: 0; right: 0; top: 16%; z-index: 24; text-align: center; pointer-events: none; }
+#victory .v1 { font: italic 900 64px/1 var(--cond); color: #f2cf5a; animation: vslam .55s cubic-bezier(.2,1.4,.4,1) both; text-shadow: 0 4px 0 rgba(0,0,0,.35); }
+#victory .v2 { font: italic 900 112px/1 var(--cond); text-transform: uppercase; color: #fff; letter-spacing: 2px; text-shadow: 0 5px 0 rgba(0,0,0,.35);
+  animation: vslam .6s .18s cubic-bezier(.2,1.4,.4,1) both, vshake .35s .7s both; }
+#victory .v3 { font: italic 700 22px var(--cond); color: #e8ecf0; margin-top: 8px; animation: vfade .6s 1s both; text-shadow: 0 2px 2px rgba(0,0,0,.5); }
+@keyframes vslam { from { transform: scale(3) rotate(-4deg); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes vshake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
+@keyframes vfade { from { opacity: 0; transform: translateY(10px); } }
+body.ended #vitals, body.ended #hotbar, body.ended #weaponinfo, body.ended #ammo-list, body.ended #cross, body.ended #prompt, body.ended #channel,
+body.ended #mapbox, body.ended #center-msg, body.ended #sub-msg, body.ended #elim-pop, body.ended #banner, body.ended #poi-banner, body.ended #storm-tint, body.ended #hurt { display: none !important; }
+body.victory #feed { display: none; }
 
 /* ---------- HUD ---------- */
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
@@ -218,5 +235,10 @@ body.touch #stats { font-size: 13px; }
   #vitals { width: 260px; }
   .slot { width: 52px; height: 52px; }
   #center-msg { font-size: 24px; } #poi-banner { font-size: 32px; }
-  #end-title { font-size: 48px; }
+  #end { flex-wrap: wrap; gap: 10px; padding: 10px 14px; } .end-btns { width: 100%; } #victory .v2 { font-size: 64px; }
 }
+
+.ver { margin-top: 8px; font-size: 11px; color: #6f7a86; text-align: right; }
+#netinfo { position: absolute; left: 16px; top: 92px; font: 600 12px 'Segoe UI', sans-serif; color: #c9d2dc; text-shadow: 0 1px 1px #000; }
+#netinfo.bad { color: #f0a050; }
+body.touch #netinfo { top: 70px; left: 290px; }

@@ -235,6 +235,11 @@ export function animateCharacter(a, dt) {
     P.shLX = Math.PI / 2 + s * 1.5; P.shRX = Math.PI / 2 - s * 1.5; P.elLX = P.elRX = 0.3;
     P.hipLX = Math.sin(ph * 2) * 0.3; P.hipRX = -Math.sin(ph * 2) * 0.3; P.headX = -0.9;
     armsFree = false;
+  } else if (a.ladder) {
+    const t = Math.abs(a.vel.y) > 0.1 ? G_t() * 7 : 0;
+    P.shLX = Math.PI - 0.55 + Math.sin(t) * 0.4; P.shRX = Math.PI - 0.55 - Math.sin(t) * 0.4; P.elLX = P.elRX = 0.7;
+    P.hipLX = 0.55 - Math.sin(t) * 0.45; P.hipRX = 0.55 + Math.sin(t) * 0.45; P.kneeLX = P.kneeRX = -1.0;
+    armsFree = false;
   } else if (st === 'car') {
     P.pelvisY = 0.55; P.hipLX = P.hipRX = 1.45; P.kneeLX = P.kneeRX = -1.35; P.hipLZ = -0.08; P.hipRZ = 0.08;
     P.shLX = P.shRX = 0.95; P.elLX = P.elRX = 0.55; P.shLZ = 0.15; P.shRZ = -0.15;

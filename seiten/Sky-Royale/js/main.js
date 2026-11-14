@@ -7,7 +7,7 @@ import { initTouch, setTouch, showTouch, updateTouch } from './touch.js';
 import { camState } from './player.js';
 import { applySettings, openSettings } from './settings.js';
 import { createSky, createWater, updateSky, HORIZON } from './sky.js';
-import { elimEffect, sparkle } from './effects.js';
+import { elimEffect, sparkle, confetti } from './effects.js';
 import { sfx } from './audio.js';
 import { loadWorld, heightAt, isLand, updateObjects } from './world.js';
 import { createActor, resetLoadout, aliveCount } from './actors.js';
@@ -190,7 +190,7 @@ function placeOnPad(a, i) {
   a.vel.set(0, 0, 0); a.state = 'air'; a.onGround = false;
   a.yaw = Math.atan2(-(G.spawnCenter.x - a.pos.x), -(G.spawnCenter.z - a.pos.z));
   a.hp = 100; a.shield = 0; a.alive = true; a.model.visible = true;
-  if (a.isRemote) a.netPos = a.pos.clone();
+  if (a.isRemote) { a.netPos = a.pos.clone(); a.netYaw = a.yaw; a.netPitch = 0; }
 }
 
 function showHud() { $('hud').classList.remove('hidden'); $('menu').classList.add('hidden'); setUnloadGuard(true); canvas.dataset.play = '1'; }
@@ -221,7 +221,7 @@ on('netStart', d => {
     const a = createActor(r.name, r.bot, r.look, r.id);
     a.pos.set(r.p[0], r.p[1], r.p[2]);
     if (r.id === d.you) { G.player = a; setupPlayer(a); a.name = r.name; }
-    else { a.isPuppet = true; a.netPos = a.pos.clone(); }
+    else { a.isPuppet = true; a.netPos = a.pos.clone(); a.netYaw = 0; a.netPitch = 0; }
   }
   G.player.state = 'air';
   G.phase = 'warmup'; G.phaseT = d.pt;
@@ -286,48 +286,82 @@ on('eliminated', (t, killer) => {
   if (G.phase !== 'bus' && G.phase !== 'match') return;
   if (t === G.player) {
     G.spectate = killer && killer !== t && killer.alive ? killer : null;
-    const k = killer && killer !== t ? ` · Eliminiert von ${killer.name}` : '';
-    setTimeout(() => endGame(`Platz #${t.place}`, `Kills: ${G.player.kills}${k}`), 2200);
+    const kn = killer && killer !== t ? killer.name : null;
+    setTimeout(() => endGame('lose', kn), 1600);
   }
   if (!isClient() && aliveCount() === 1) {
     const w = G.actors.find(a => a.alive);
     net.end(w);
-    if (w === G.player) setTimeout(() => endGame('#1 Victory Royale', `Kills: ${G.player.kills}`), 1200);
+    announceWinner(w);
   }
 });
-on('netEnd', w => { if (w === G.player.id) setTimeout(() => endGame('#1 Victory Royale', `Kills: ${G.player.kills}`), 1200); });
-on('netLost', () => endGame('Verbindung verloren', 'Der Host hat das Spiel verlassen.'));
+on('netEnd', id => announceWinner(G.actors.find(a => a.id === id)));
+function announceWinner(w) {
+  if (!w) return;
+  G.winner = w;
+  if (w === G.player) { startVictory(); return; }
+  w.emoteT = 1e9; w.emoteStyle = 1;                   // Gewinner tanzt
+  G.spectate = w;
+  setTimeout(() => { if (!G.ended) endGame('lose', null); updateEndBar(); }, 1700);
+}
+on('netLost', () => endGame('lost', null));
 
-function endGame(title, sub) {
+// ---------- Rundenende ----------
+let endKind = 'lose', killerName = null;
+function endGame(kind, kname) {
   if (G.ended) return;
-  G.ended = true;
+  G.ended = true; endKind = kind; killerName = kname;
   setUnloadGuard(false); canvas.dataset.play = '0';
-  const win = title.includes('Victory');
-  const a = G.player, t = Math.max(0, G.time - (G.matchStart || G.time));
-  $('end').classList.toggle('win', win);
-  $('end-place').textContent = win ? '#1' : (title.startsWith('Platz') ? '#' + a.place : '');
-  $('end-title').textContent = win ? 'Victory Royale' : title.startsWith('Platz') ? 'Ausgeschieden' : title;
-  $('end-stats').innerHTML = [[a.kills, 'Eliminierungen'], [Math.round(a.dmgDealt || 0), 'Schaden'], [`${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, 'Überlebt'], [sub.split('· ')[1] || '–', 'Eliminiert von']]
-    .filter(x => win ? x[1] !== 'Eliminiert von' : true).map(([v, l]) => `<div><b>${String(v).replace('Eliminiert von ', '')}</b>${l}</div>`).join('');
-  $('end').classList.remove('hidden'); $('pause').classList.add('hidden');
-  if (win) sfx('victory');
+  document.body.classList.add('ended');
+  showTouch(false);
+  $('pause').classList.add('hidden');
+  if (!G.spectate || !G.spectate.alive) nextSpectate();
+  updateEndBar();
+  $('end').classList.remove('hidden');
   document.exitPointerLock();
 }
-$('btn-spectate').onclick = () => { $('end').classList.add('hidden'); if (!G.spectate || !G.spectate.alive) nextSpectate(); };
+function updateEndBar() {
+  const a = G.player, t = Math.max(0, (a.alive || endKind === 'win' ? G.time : (a.deathTime || G.time)) - (G.matchStart || G.time));
+  const win = endKind === 'win';
+  $('end').classList.toggle('win', win);
+  $('end-place').textContent = win ? '#1 von ' + G.actors.length : endKind === 'lost' ? '' : '#' + (a.place || '?');
+  $('end-title').textContent = win ? 'Victory Royale' : endKind === 'lost' ? 'Verbindung verloren'
+    : G.winner && G.winner !== a ? G.winner.name + ' hat gewonnen' : 'Ausgeschieden';
+  const stats = [[a.kills, 'Eliminierungen'], [Math.round(a.dmgDealt || 0), 'Schaden'], [`${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, 'Überlebt']];
+  if (!win && killerName) stats.push([killerName, 'Eliminiert von']);
+  $('end-stats').innerHTML = stats.map(([v, l]) => `<div><b>${String(v).replace(/</g, '&lt;')}</b>${l}</div>`).join('');
+  $('btn-spectate').classList.toggle('hidden', win);
+}
+// Sieg: Zeitlupe, Kamerafahrt, Konfetti, großer Schriftzug, danach die Leiste
+function startVictory() {
+  if (G.victory) return;
+  G.victory = { t: 0 };
+  document.body.classList.add('ended', 'victory');
+  showTouch(false);
+  const a = G.player;
+  a.emoteT = 1e9; a.emoteStyle = 0; a.ads = false;
+  $('victory').querySelector('.v3').textContent = `${a.kills} Eliminierungen · ${G.actors.length} Spieler`;
+  $('victory').classList.remove('hidden');
+  sfx('victory'); setTimeout(() => sfx('horn'), 700);
+  if (!isMP()) G.timeScale = 0.3;
+  setTimeout(() => { $('victory').classList.add('hidden'); endGame('win', null); }, 6500);
+}
+$('btn-spectate').onclick = () => nextSpectate();
 // Zuschauen: nächster Spieler per Leertaste/Klick/Tippen/A, Esc (oder B/Menü) zurück zum Ende-Bildschirm
 function nextSpectate() {
-  const alive = G.actors.filter(a => a.alive && a !== G.player).sort((x, y) => x.id - y.id);
+  const alive = G.actors.filter(a => a.alive && a !== G.player).sort((x, y) => (x.isBot - y.isBot) || x.id - y.id);
   if (!alive.length) { G.spectate = null; return; }
   const i = alive.indexOf(G.spectate);
   G.spectate = alive[(i + 1) % alive.length];
 }
-const spectating = () => G.ended && !G.player.alive && $('end').classList.contains('hidden');
+const spectating = () => G.ended && !G.player.alive;
 addEventListener('keydown', e => {
   if (!G.ended) return;
-  if (e.code === 'Escape' && $('end').classList.contains('hidden') && $('settings').classList.contains('hidden')) $('end').classList.remove('hidden');
+  if (e.code === 'Escape' && $('settings').classList.contains('hidden') && !G.victory) $('end').classList.toggle('hidden');   // Leiste ein/aus
   else if (e.code === 'Space' && spectating()) nextSpectate();
 });
 canvas.addEventListener('click', () => { if (spectating()) nextSpectate(); });
+on('eliminated', t => { if (t === G.player) t.deathTime = G.time; });
 canvas.addEventListener('touchstart', () => { if (spectating()) nextSpectate(); }, { passive: true });
 on('elimFx', p => elimEffect(p));
 
@@ -385,8 +419,9 @@ function update(dt) {
   updateTouch(!!(camState.interact || camState.car), G.player.state === 'car', !G.player.alive);
   if (!G.player.alive && G.ended) {
     if (!G.spectate || !G.spectate.alive) nextSpectate();
-    message('', G.spectate ? `Du schaust ${G.spectate.name} zu · ${touchMode ? 'Tippen' : 'Leertaste / Klick'}: nächster Spieler · ${touchMode ? 'Menü' : 'Esc'}: Übersicht` : '');
-  }
+    $('end-watch').textContent = G.spectate ? `Du schaust ${G.spectate.name}${G.spectate.isBot ? '' : ' (Spieler)'} zu · ${touchMode ? 'Tippen' : 'Leertaste / Klick'}: nächster · ${touchMode ? '' : 'Esc: Leiste ein/aus'}` : '';
+  } else if (G.ended) $('end-watch').textContent = '';
+  if (G.victory) { G.victory.t += dt / (G.timeScale || 1); if (G.victory.t > 1.4) G.timeScale = 1; if (Math.random() < 0.5) confetti(G.player.pos); }
 }
 
 // Truhen funkeln und summen in der Nähe
@@ -409,20 +444,19 @@ function chestFx(dt) {
 function padMenus() {
   const vh = a => virtHit.has(a);
   if (vh('pause')) {
-    if (G.ended) { if (spectating()) $('end').classList.remove('hidden'); }
+    if (G.ended) { if (!G.victory || G.victory.t > 6) $('end').classList.toggle('hidden'); }
     else if (G.player && G.phase !== 'menu') { if ($('pause').classList.contains('hidden')) openPause(); else resumeGame(true); }
   }
   if (vh('jump') || vh('padUse')) {
     if (!$('menu').classList.contains('hidden') && G.phase === 'menu' && !$('btn-play').disabled && !isMP()) { initAudio(); startWarmup(); $('menu').classList.add('hidden'); }
     else if (!$('pause').classList.contains('hidden') && !G.ended) resumeGame(true);
-    else if (G.ended && !$('end').classList.contains('hidden')) { $('end').classList.add('hidden'); if (!G.spectate || !G.spectate.alive) nextSpectate(); }
     else if (spectating()) nextSpectate();
   }
-  if (vh('crouch') && spectating()) $('end').classList.remove('hidden');
+  if (vh('crouch') && spectating()) $('end').classList.toggle('hidden');
 }
 
 function frame() {
-  const dt = Math.min(0.05, clock.getDelta());
+  const dt = Math.min(0.05, clock.getDelta()) * (G.timeScale || 1);
   pollGamepad();
   padMenus();
   if (G.player && !G.paused && G.phase !== 'loading' && G.phase !== 'menu') update(dt);
@@ -437,5 +471,16 @@ function frame() {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+// Im Multiplayer weiterrechnen, auch wenn der Tab im Hintergrund ist (sonst bleibt beim Host alles stehen)
+let lastBgTick = performance.now();
+try {
+  const w = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 33)'], { type: 'text/javascript' })));
+  w.onmessage = () => {
+    const now = performance.now(), dt = Math.min(0.05, (now - lastBgTick) / 1000); lastBgTick = now;
+    if (!document.hidden || !isMP() || !G.player || G.phase === 'menu' || G.phase === 'loading') return;
+    update(dt); endFrame();
+  };
+} catch (e) {}
 
 window.G = G;
