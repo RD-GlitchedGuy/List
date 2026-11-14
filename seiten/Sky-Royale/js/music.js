@@ -40,11 +40,25 @@ function buildDock() {
   setInterval(show, 250);
 }
 function msg(t) { if (dock) dock.querySelector('.md-msg').textContent = t || ''; status(t); }
+// Einblendung bei neuem Song: fährt von links rein, bleibt 3 s, fährt wieder raus (mit Cover, Künstler und SoundCloud)
+let toastEl = null, toastTimer = 0;
+function toast(s, note) {
+  if (!toastEl) { toastEl = document.createElement('div'); toastEl.id = 'music-toast'; document.body.appendChild(toastEl); }
+  const art = (s.artwork_url || (s.user && s.user.avatar_url) || '').replace('-large', '-t200x200');
+  toastEl.innerHTML = `${art ? `<img src="${esc(art)}" alt="">` : '<div class="mt-noart">♪</div>'}
+    <div class="mt-text"><small>${note || 'Jetzt läuft'}</small><b>${esc(s.title)}</b><span>${esc(s.user && s.user.username)}</span></div>
+    <div class="mt-sc">SoundCloud</div>`;
+  toastEl.classList.remove('in'); void toastEl.offsetWidth;
+  toastEl.classList.add('in');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('in'), 3500);
+}
 export function peekMusic(sec = 6) { peekUntil = performance.now() + sec * 1000; show(); }
 // Sichtbar: in Menüs immer (außer weggeklickt), im Spiel nur kurz als Pop-up bei neuem Song oder Tastendruck
 function show() {
   if (!dock) return;
-  const inGame = !!document.pointerLockElement;
+  const vis = id => { const e = document.getElementById(id); return e && !e.classList.contains('hidden'); };
+  const inGame = !!G.player && !vis('menu') && !vis('pause') && !vis('settings') && !document.body.classList.contains('ended');   // im Spiel: Player unsichtbar
   const has = !!frame;
   const on = has && (inGame ? performance.now() < peekUntil : !closed);
   dock.classList.toggle('on', on);
@@ -55,7 +69,7 @@ function show() {
   if (playAsked && !playing && performance.now() - playAsked > 4000) {
     playAsked = 0;
     msg('Dein Browser hat das automatische Abspielen blockiert – klick einmal im Player auf ▶ (Esc öffnet das Menü).');
-    closed = false; peekMusic(12);
+    closed = false; peekMusic(15);
   }
 }
 
@@ -110,7 +124,7 @@ export async function setMusicUrl(url) {
   dock.querySelector('.md-open').href = url;
   widget.bind(E.PLAY, () => {
     playing = true; playAsked = 0; msg('');
-    widget.getCurrentSound(s => { if (s) { if (!cur || cur.id !== s.id) peekMusic(6); cur = s; addCredit(s); } });
+    widget.getCurrentSound(s => { if (s) { if (!cur || cur.id !== s.id) toast(s); cur = s; addCredit(s); } });
   });
   widget.bind(E.PAUSE, () => { playing = false; });
   widget.bind(E.FINISH, () => { playing = false; });
@@ -122,8 +136,8 @@ export async function setMusicUrl(url) {
 export function applyVolume() { if (widget && ready) widget.setVolume(Math.round((G.settings.musicVol ?? 0.5) * 100)); }
 export function playMusic() { wantPlay = true; if (widget && ready) { widget.play(); playAsked = performance.now(); } }
 export function stopMusic() { wantPlay = false; playAsked = 0; if (widget && ready) widget.pause(); }
-export function toggleMusic() { if (!widget) return; peekMusic(4); if (playing) stopMusic(); else playMusic(); }
-export function nextTrack() { if (widget && ready) { widget.next(); wantPlay = true; widget.play(); peekMusic(6); } }
+export function toggleMusic() { if (!widget) return; if (playing) { stopMusic(); if (cur) toast(cur, 'Pausiert'); } else { playMusic(); if (cur) toast(cur); } }
+export function nextTrack() { if (widget && ready) { widget.next(); wantPlay = true; widget.play(); } }
 
 // Rundenstart: automatisch spielen, wenn eingestellt
 export function musicRoundStart() { if (G.settings.musicAuto && widget && !playing) playMusic(); }
