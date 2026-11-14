@@ -242,3 +242,61 @@ body.touch #stats { font-size: 13px; }
 #netinfo { position: absolute; left: 16px; top: 92px; font: 600 12px 'Segoe UI', sans-serif; color: #c9d2dc; text-shadow: 0 1px 1px #000; }
 #netinfo.bad { color: #f0a050; }
 body.touch #netinfo { top: 70px; left: 290px; }
+
+/* ---------- Modus-Auswahl & Warteschlange ---------- */
+.modes { display: flex; gap: 0; margin: 10px 0 2px; }
+.modes button { margin: 0; background: #2f3a4a; color: #b9c1cc; border: 1px solid #4a586c; }
+.modes button + button { border-left: 0; }
+.modes button.sel { background: #e6c14d; color: #15181d; border-color: #e6c14d; }
+#queue-msg { min-height: 18px; font-size: 13px; color: #d1ac3c; margin: 2px 0 4px; }
+.priv { margin-top: 10px; padding-top: 8px; border-top: 1px solid #344052; }
+.priv .lbl { font-size: 12px; color: #8e99a8; text-transform: uppercase; letter-spacing: .5px; }
+
+/* ---------- Ende-Leiste mit drei Knöpfen ---------- */
+.end-btns { width: 520px; }
+
+/* ---------- Duo: Teamkamerad ---------- */
+#mate-box { position: absolute; left: 22px; bottom: 112px; width: 220px; padding: 6px 8px; background: rgba(18, 24, 33, .72); border-left: 3px solid #4aa3ff; }
+#mate-box b { font: italic 700 15px var(--cond); display: block; margin-bottom: 4px; }
+#mate-box .mbar { height: 6px; background: rgba(255,255,255,.12); margin-top: 3px; }
+#mate-box .mbar i { display: block; height: 100%; background: #5fb85a; }
+#mate-box .mbar i.ms { background: #4aa3ff; }
+#mate-box.out { opacity: .5; } #mate-box.out b::after { content: ' · ausgeschieden'; font-weight: 400; font-size: 12px; }
+#mate-tag { position: absolute; display: none; transform: translate(-50%, -100%); text-align: center; pointer-events: none; }
+#mate-tag i { display: block; width: 12px; height: 12px; margin: 0 auto 2px; background: #4aa3ff; transform: rotate(45deg); border: 2px solid #0d1a2a; }
+#mate-tag span { font: italic 700 13px var(--cond); color: #cfe6ff; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+body.ended #mate-box, body.ended #mate-tag { display: none !important; }
+body.touch #mate-box { left: 14px; top: 78px; bottom: auto; width: 180px; }
+
+/* ---------- Inventar ---------- */
+#inv { position: absolute; inset: 0; z-index: 30; background: rgba(10, 14, 20, .55); pointer-events: auto; }
+.inv-box { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 640px; max-width: 96vw; padding: 16px 18px;
+  background: #1c2430; border: 1px solid #3a4658; }
+.inv-head { font: italic 800 26px var(--cond); text-transform: uppercase; margin-bottom: 10px; }
+.inv-head small { font: 400 12px "Segoe UI", sans-serif; text-transform: none; color: #9aa5b3; margin-left: 10px; }
+.inv-slots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.inv-slot { position: relative; height: 104px; background: #263142; border: 2px solid #374458; }
+.inv-slot .rar { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; }
+.inv-slot svg { position: absolute; left: 10px; top: 16px; width: calc(100% - 20px); height: 40px; fill: #f2f2ee; }
+.inv-slot b { position: absolute; left: 6px; right: 6px; bottom: 22px; font: italic 700 13px var(--cond); line-height: 1.05; }
+.inv-slot small { position: absolute; left: 6px; bottom: 7px; font-size: 11px; color: #c3cad3; }
+.inv-slot .key { position: absolute; left: 5px; top: 2px; font-size: 10px; color: #8c97a6; }
+.inv-slot.sel { border-color: #f4f4f0; }
+.inv-slot.hov, .inv-am.hov, .inv-drop.hov { background: #324057; }
+.inv-slot.mark, .inv-am.mark { border-color: #e6c14d; }
+.inv-row { display: flex; gap: 6px; margin-top: 8px; }
+.inv-info { flex: 1; min-height: 44px; padding: 6px 8px; background: #222b38; font-size: 13px; line-height: 1.45; color: #cfd5dc; }
+.inv-drop { width: 120px; display: flex; align-items: center; justify-content: center; border: 2px dashed #4a586c; font: italic 700 15px var(--cond);
+  text-transform: uppercase; color: #8e99a8; }
+.inv-drop.on { border-color: #e6c14d; color: #e6c14d; }
+.inv-ammo { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px; }
+.inv-am { padding: 6px 8px; background: #263142; border: 2px solid #374458; font-size: 11px; color: #aeb7c2; }
+.inv-am b { display: block; font: italic 800 18px var(--cond); color: #f2f2ee; }
+.inv-am.empty { opacity: .45; }
+.inv-cursor { position: absolute; width: 14px; height: 14px; margin: -2px 0 0 -2px; border-left: 3px solid #fff; border-top: 3px solid #fff;
+  transform: skew(-8deg); filter: drop-shadow(0 1px 1px #000); pointer-events: none; }
+body.inv-open #cross, body.inv-open #hotbar { visibility: hidden; }
+.b-inv { top: 10px; width: 64px; height: 34px; font-size: 12px; left: 50%; margin-left: 98px; }
+@media (max-width: 700px) { .inv-slot { height: 84px; } .inv-ammo { grid-template-columns: repeat(3, 1fr); } }
+.inv-close { display: none; float: right; font-size: 14px; padding: 4px 10px; border: 1px solid #4a586c; cursor: pointer; }
+body.touch .inv-close { display: inline-block; }

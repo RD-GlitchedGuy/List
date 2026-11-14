@@ -34,6 +34,12 @@ export function createStorm() {
     cx: 0, cz: 0, r: 460, fromX: 0, fromZ: 0, fromR: 460, nx: 0, nz: 0, nr: 460, dmg: 1, tick: 0 };
 }
 
+export function resetStorm() {
+  const s = G.storm; if (!s) return;
+  Object.assign(s, { active: false, phase: -1, t: 0, shrinking: false, cx: 0, cz: 0, r: 460, nx: 0, nz: 0, nr: 460, tick: 0 });
+  s.wall.visible = false;
+}
+
 export function startStorm() {
   const s = G.storm;
   s.active = true; s.phase = 0; s.t = 0; s.shrinking = false;
@@ -72,7 +78,7 @@ export function updateStorm(dt) {
   s.tick += dt;
   if (s.tick >= 1) {
     s.tick = 0;
-    for (const a of G.actors) if (a.alive && a.state !== 'bus' && outside(a.pos)) damage(a, s.dmg, null, { ignoreShield: true, cause: 'Sturm' });
+    for (const a of G.actors) if (a.alive && !a.wait && a.state !== 'bus' && outside(a.pos)) damage(a, s.dmg, null, { ignoreShield: true, cause: 'Sturm' });
   }
 }
 

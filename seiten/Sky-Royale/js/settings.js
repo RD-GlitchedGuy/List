@@ -66,7 +66,7 @@ function render() {
     body += `<table class="binds pad"><tr class="grp"><td colspan="2">Controller (Xbox / PlayStation)</td></tr>
       ${[['Linker Stick', 'Laufen (L3 drücken = Sprinten)'], ['Rechter Stick', 'Umsehen'], ['RT / R2', 'Schießen · im Auto Gas'], ['LT / L2', 'Zielen · im Auto Bremse/Rückwärts'],
         ['A / ✕', 'Springen · Abspringen · Gleiter'], ['B / ○', 'Ducken · beim Sprinten Rutschen'], ['X / □', 'Benutzen · Nachladen · Einsteigen'], ['Y / △', 'Spitzhacke'],
-        ['LB / RB', 'Slot wechseln'], ['Steuerkreuz ↑ / ↓', 'Pingen / Tanzen'], ['View / Share', 'Karte'], ['Menü / Options', 'Pause']]
+        ['LB / RB', 'Slot wechseln'], ['Steuerkreuz ↑ (halten)', 'Inventar'], ['Steuerkreuz ↓ / ←', 'Tanzen / Pingen'], ['View / Share', 'Karte'], ['Menü / Options', 'Pause']]
         .map(([k, v]) => `<tr><td style="width:180px"><b>${k}</b></td><td>${v}</td></tr>`).join('')}</table>`;
   } else {
     for (const [k, label, min, max, step] of SLIDERS[tab]) {

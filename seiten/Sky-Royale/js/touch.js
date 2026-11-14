@@ -7,7 +7,7 @@ const BUTTONS = [
   ['fire', 'Feuer', 'fire', true], ['fire2', 'Feuer', 'fire', true], ['aim', 'Zielen', 'aim', 'toggle'],
   ['jump', 'Springen', 'jump', true], ['crouch', 'Ducken', 'crouch', false], ['reload', 'Laden', 'reload', false],
   ['use', 'Benutzen', 'padUse', false], ['pick', 'Hacke', 'pickaxe', false],
-  ['map', 'Karte', 'map', false], ['ping', 'Ping', 'ping', false], ['emote', 'Tanz', 'emote', false], ['pause', 'Menü', 'pause', false],
+  ['map', 'Karte', 'map', false], ['ping', 'Ping', 'ping', false], ['emote', 'Tanz', 'emote', false], ['pause', 'Menü', 'pause', false], ['inv', 'Inventar', 'inventory', 'toggle'],
 ];
 let root, stickBase, stickKnob, active = false;
 const touches = new Map();

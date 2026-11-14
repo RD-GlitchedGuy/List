@@ -204,6 +204,7 @@ export async function loadWorld(url, onProgress) {
   collider.raycast = acceleratedRaycast;
   collider.visible = false;
   G.collider = collider;
+  G.colliderOrig = all.slice();
   G.triStart = triStart; G.triObj = triObj;
   G.objects = G.objects.filter(o => o.ranges.length);           // nur Objekte mit Kollision
   G.objects.forEach((o, i) => o.id = i);
@@ -259,7 +260,27 @@ export function wobbleObject(o) { o.wobble = 0.35; G.wobbling = G.wobbling || []
 
 export function hideChest(chest) {
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+  if (!chest.orig) chest.orig = chest.meshes.map(m => { const M = new THREE.Matrix4(); m.getMatrixAt(chest.index, M); return M; });
   for (const m of chest.meshes) { m.setMatrixAt(chest.index, zero); m.instanceMatrix.needsUpdate = true; }
+}
+
+// Neue Runde: Truhen und abgebaute Objekte zurückholen
+export function restoreWorld() {
+  for (const c of G.chests) {
+    if (c.opened && c.orig) c.meshes.forEach((m, i) => { m.setMatrixAt(c.index, c.orig[i]); m.instanceMatrix.needsUpdate = true; });
+    c.opened = false;
+  }
+  const pos = G.collider.geometry.attributes.position, orig = G.colliderOrig;
+  let changed = false;
+  for (const o of G.objects) {
+    o.hp = o.max; o.wobble = 0;
+    if (o.alive) continue;
+    o.alive = true; changed = true;
+    for (const p of o.parts) { p.mesh.setMatrixAt(p.index, p.local); p.mesh.instanceMatrix.needsUpdate = true; }
+    for (const [a, b] of o.ranges) for (let i = a; i < b; i++) pos.setXYZ(i, orig[i * 3], orig[i * 3 + 1], orig[i * 3 + 2]);
+  }
+  if (changed) { pos.needsUpdate = true; G.collider.geometry.boundsTree.refit(); }
+  G.wobbling = [];
 }
 
 // Gelände-Höhe (bilinear)

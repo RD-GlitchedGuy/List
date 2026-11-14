@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Sky Royale</title>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="importmap">
 {
@@ -14,29 +14,30 @@
     "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
     "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js",
-    "./js/actors.js": "./js/actors.js?v=10",
-    "./js/audio.js": "./js/audio.js?v=10",
-    "./js/bots.js": "./js/bots.js?v=10",
-    "./js/bus.js": "./js/bus.js?v=10",
-    "./js/cars.js": "./js/cars.js?v=10",
-    "./js/combat.js": "./js/combat.js?v=10",
-    "./js/effects.js": "./js/effects.js?v=10",
-    "./js/hud.js": "./js/hud.js?v=10",
-    "./js/input.js": "./js/input.js?v=10",
-    "./js/items.js": "./js/items.js?v=10",
-    "./js/loot.js": "./js/loot.js?v=10",
-    "./js/main.js": "./js/main.js?v=10",
-    "./js/models.js": "./js/models.js?v=10",
-    "./js/movement.js": "./js/movement.js?v=10",
-    "./js/net.js": "./js/net.js?v=10",
-    "./js/physics.js": "./js/physics.js?v=10",
-    "./js/player.js": "./js/player.js?v=10",
-    "./js/settings.js": "./js/settings.js?v=10",
-    "./js/sky.js": "./js/sky.js?v=10",
-    "./js/state.js": "./js/state.js?v=10",
-    "./js/storm.js": "./js/storm.js?v=10",
-    "./js/touch.js": "./js/touch.js?v=10",
-    "./js/world.js": "./js/world.js?v=10"
+    "./js/actors.js": "./js/actors.js?v=11",
+    "./js/audio.js": "./js/audio.js?v=11",
+    "./js/bots.js": "./js/bots.js?v=11",
+    "./js/bus.js": "./js/bus.js?v=11",
+    "./js/cars.js": "./js/cars.js?v=11",
+    "./js/combat.js": "./js/combat.js?v=11",
+    "./js/effects.js": "./js/effects.js?v=11",
+    "./js/hud.js": "./js/hud.js?v=11",
+    "./js/input.js": "./js/input.js?v=11",
+    "./js/inv.js": "./js/inv.js?v=11",
+    "./js/items.js": "./js/items.js?v=11",
+    "./js/loot.js": "./js/loot.js?v=11",
+    "./js/main.js": "./js/main.js?v=11",
+    "./js/models.js": "./js/models.js?v=11",
+    "./js/movement.js": "./js/movement.js?v=11",
+    "./js/net.js": "./js/net.js?v=11",
+    "./js/physics.js": "./js/physics.js?v=11",
+    "./js/player.js": "./js/player.js?v=11",
+    "./js/settings.js": "./js/settings.js?v=11",
+    "./js/sky.js": "./js/sky.js?v=11",
+    "./js/state.js": "./js/state.js?v=11",
+    "./js/storm.js": "./js/storm.js?v=11",
+    "./js/touch.js": "./js/touch.js?v=11",
+    "./js/world.js": "./js/world.js?v=11"
   }
 }
 </script>
@@ -78,6 +79,8 @@
   <div id="speedo"></div>
   <div id="channel"><div class="lbl"></div><div class="bar"><i></i></div></div>
 
+  <div id="mate-tag"><i></i><span></span></div>
+  <div id="mate-box" class="hidden"><b></b><div class="mbar"><i class="ms"></i></div><div class="mbar"><i class="mh"></i></div></div>
   <div id="vitals">
     <div class="vrow sh"><svg viewBox="0 0 20 20"><path d="M10 1l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V4z" fill="currentColor"/></svg>
       <div class="bar"><i id="sh-bar"></i><span class="segs"></span></div><b id="sh-num">0</b><small>100</small></div>
@@ -101,13 +104,19 @@
     <h1>Sky <span>Royale</span></h1>
     <div id="load"><div class="bar"><i id="load-bar"></i></div><span id="load-txt">Lade Map …</span></div>
     <label class="field">Name <input id="name" maxlength="16" placeholder="Spieler"></label>
-    <div class="row">
-      <button id="btn-play" disabled>Solo spielen</button>
-      <button id="btn-host" class="ghost" disabled>Lobby erstellen</button>
-    </div>
-    <div class="row join">
-      <input id="code" maxlength="5" placeholder="CODE">
-      <button id="btn-join" class="ghost" disabled>Beitreten</button>
+    <div class="modes"><button id="mode-solo" class="sel">Solo</button><button id="mode-duo">Duo</button></div>
+    <button id="btn-play" disabled>Spielen</button>
+    <div id="queue-msg"></div>
+    <div class="priv">
+      <div class="lbl">Privat mit Freunden · oder offline</div>
+      <div class="row">
+        <button id="btn-host" class="ghost" disabled>Lobby erstellen</button>
+        <button id="btn-offline" class="ghost" disabled>Offline gegen Bots</button>
+      </div>
+      <div class="row join">
+        <input id="code" maxlength="5" placeholder="CODE">
+        <button id="btn-join" class="ghost" disabled>Beitreten</button>
+      </div>
     </div>
     <div id="lobby" class="hidden">
       <div class="lobby-code">Lobby-Code: <b id="lobby-code">–</b></div>
@@ -117,7 +126,7 @@
     </div>
     <button id="btn-settings" class="ghost">Einstellungen &amp; Tastenbelegung</button>
     <div id="keyhelp"></div>
-    <div class="ver"><span id="ver">Version 10</span></div>
+    <div class="ver"><span id="ver">Version 11</span></div>
   </div>
 </div>
 
@@ -127,6 +136,7 @@
     <button id="btn-resume">Weiter</button>
     <button id="btn-psettings" class="ghost">Einstellungen</button>
     <button id="btn-restart" class="ghost">Neue Runde</button>
+    <button id="btn-pmenu" class="ghost">Hauptmenü</button>
   </div>
 </div>
 
@@ -137,9 +147,11 @@
 <div id="end" class="hidden">
   <div class="end-left"><div id="end-place"></div><div id="end-title"></div><div id="end-watch"></div></div>
   <div id="end-stats"></div>
-  <div class="end-btns"><button id="btn-spectate" class="ghost">Nächster Spieler</button><button id="btn-again">Nächstes Spiel</button></div>
+  <div class="end-btns"><button id="btn-spectate" class="ghost">Nächster Spieler</button><button id="btn-again">Nochmal spielen</button><button id="btn-menu" class="ghost">Hauptmenü</button></div>
 </div>
 
-<script type="module" src="js/main.js?v=10"></script>
+<div id="inv" class="hidden"></div>
+
+<script type="module" src="js/main.js?v=11"></script>
 </body>
 </html>

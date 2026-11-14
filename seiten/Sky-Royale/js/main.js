@@ -1,7 +1,7 @@
 // Sky Royale – Einstieg, Lobby, Spielphasen und Hauptschleife
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { G, on, rand } from './state.js';
+import { G, on, emit, rand } from './state.js';
 import { initInput, lockPointer, endFrame, bindLabel, setUnloadGuard, pollGamepad, virtHit, touchMode, locked } from './input.js';
 import { initTouch, setTouch, showTouch, updateTouch } from './touch.js';
 import { camState } from './player.js';
@@ -9,8 +9,8 @@ import { applySettings, openSettings } from './settings.js';
 import { createSky, createWater, updateSky, HORIZON } from './sky.js';
 import { elimEffect, sparkle, confetti } from './effects.js';
 import { sfx } from './audio.js';
-import { loadWorld, heightAt, isLand, updateObjects } from './world.js';
-import { createActor, resetLoadout, aliveCount } from './actors.js';
+import { loadWorld, heightAt, isLand, updateObjects, restoreWorld } from './world.js';
+import { createActor, resetLoadout, aliveCount, aliveTeams, teamOf, mateOf, removeActor, eliminate } from './actors.js';
 import { createBots, updateBots, planBotDrops } from './bots.js';
 import { setupPlayer, updatePlayer, updateCamera } from './player.js';
 import { updateActorCombat, updateProjectiles, updateThrowables } from './combat.js';
@@ -19,15 +19,18 @@ import { animateCharacter } from './models.js';
 import { spawnLoot, updateLoot, removeLoot } from './loot.js';
 import { rollFloor } from './items.js';
 import { startBus, updateBus } from './bus.js';
-import { createStorm, startStorm, updateStorm } from './storm.js';
-import { initCars, stepCar } from './cars.js';
+import { createStorm, startStorm, updateStorm, resetStorm } from './storm.js';
+import { initCars, stepCar, resetCars } from './cars.js';
 import { updateEffects } from './effects.js';
-import { initHud, updateHud, message } from './hud.js';
+import { initHud, updateHud, message, banner } from './hud.js';
+import { initInventory, updateInventory } from './inv.js';
 import { raycast } from './physics.js';
 import { initAudio } from './audio.js';
-import { NET, isClient, isHost, isMP, hostLobby, joinLobby, lobbyNames, createRemoteActors, sendStart, netUpdate, net } from './net.js';
+import { NET, isClient, isHost, isMP, hostLobby, joinLobby, lobbyNames, createRemoteActors, sendStart, sendStartTo, netUpdate, net, req,
+  queuePublic, leaveNet, netActorAdd, netActorRemove, makePuppet, applySync } from './net.js';
 
-const TOTAL = 25, WARMUP = 30;
+const WARMUP = 20;
+const total = () => (G.mode === 'duo' ? 24 : 25);
 const canvas = document.getElementById('game');
 const $ = id => document.getElementById(id);
 
@@ -110,10 +113,11 @@ loadWorld('assets/maps/sky-royale.glb', p => { $('load-bar').style.width = (p * 
     makeBorder();
     createStorm(); G.storm.wall.userData.noMap = true;
     initHud();
+    initInventory();
     initTouch(); G.onTouchSetting = setTouch; setTouch(G.settings.touch);
     $('load-txt').textContent = 'Bereit';
     $('load-bar').style.width = '100%';
-    for (const id of ['btn-play', 'btn-host', 'btn-join']) $(id).disabled = false;
+    menuBusy(false);
     G.phase = 'menu';
   })
   .catch(err => { $('load-txt').textContent = 'Fehler beim Laden der Map: ' + err.message; console.error(err); });
@@ -123,27 +127,63 @@ try { $('name').value = localStorage.getItem('skyroyale.name') || ''; } catch (e
 function keyHelp() {
   const k = id => `<b>${bindLabel(id)}</b>`;
   $('keyhelp').innerHTML = `${k('forward')}${k('left')}${k('back')}${k('right')} Laufen · ${k('jump')} Springen/Gleiter · ${k('sprint')} Sprinten · ${k('crouch')} Ducken (beim Sprinten: Rutschen) · ` +
-    `${k('fire')} Schießen · ${k('aim')} Zielen · ${k('reload')} Nachladen · ${k('interact')} Öffnen/Einsteigen · ${k('ping')} Pingen · ${k('map')} Karte · ${k('emote')} Tanzen`;
+    `${k('fire')} Schießen · ${k('aim')} Zielen · ${k('reload')} Nachladen · ${k('interact')} Öffnen/Einsteigen · ${k('ping')} Pingen · ${k('map')} Karte · ${k('emote')} Tanzen / im Bus: Busfahrer danken · ${k('inventory')} halten: Inventar`;
 }
 keyHelp();
 $('btn-settings').onclick = () => openSettings(keyHelp);
 $('btn-psettings').onclick = () => openSettings();
 const playerName = () => { const n = $('name').value.trim().slice(0, 16) || 'Spieler'; try { localStorage.setItem('skyroyale.name', n); } catch (e) {} return n; };
 
-$('btn-play').onclick = () => { if (isMP()) return; initAudio(); lockPointer(canvas); if (G.phase === 'menu') startWarmup(); };
+// Modus: Solo oder Duo – jeweils eine öffentliche Hauptlobby
+let mode = 'solo';
+try { mode = localStorage.getItem('skyroyale.mode') === 'duo' ? 'duo' : 'solo'; } catch (e) {}
+function setMode(m) {
+  mode = m; if (G.phase === 'menu' || G.phase === 'loading') G.mode = m;
+  $('mode-solo').classList.toggle('sel', m === 'solo'); $('mode-duo').classList.toggle('sel', m === 'duo');
+  try { localStorage.setItem('skyroyale.mode', m); } catch (e) {}
+}
+setMode(mode);
+$('mode-solo').onclick = () => { if (!isMP()) setMode('solo'); };
+$('mode-duo').onclick = () => { if (!isMP()) setMode('duo'); };
+function menuBusy(v) { for (const id of ['btn-play', 'btn-host', 'btn-join', 'btn-offline']) $(id).disabled = v; }
+
+let queueing = false, queueTry = 0, queueTimer = 0;
+function queueGame() {
+  if (isMP() || G.phase !== 'menu') return;
+  menuBusy(true); queueing = true; G.mode = mode;
+  $('queue-msg').textContent = `Suche ${mode === 'duo' ? 'Duo' : 'Solo'}-Lobby …`;
+  queuePublic(mode, playerName(), (err, kind) => { if (err) queueFail(err, kind); });
+  clearTimeout(queueTimer);
+  queueTimer = setTimeout(() => { if (G.phase === 'menu' && queueing) queueFail('Lobby antwortet nicht', 'timeout'); }, 10000);
+}
+function queueFail(err, kind) {
+  if (!queueing) { if (G.phase !== 'menu' && isClient() && kind === 'full') toMenu(err); return; }
+  clearTimeout(queueTimer);
+  leaveNet();
+  if ((kind === 'timeout' || kind === 'peer-unavailable') && queueTry++ < 4) {
+    $('queue-msg').textContent = `Lobby antwortet nicht – neuer Versuch (${queueTry}/4) …`; setTimeout(() => { queueing = false; queueGame(); }, 400 + Math.random() * 1200); return; }
+  queueing = false; queueTry = 0; menuBusy(false);
+  $('queue-msg').textContent = err + (kind === 'full' ? ' – versuch es gleich nochmal oder spiel offline' : ' – du kannst offline gegen Bots spielen');
+  if (locked) document.exitPointerLock();
+}
+on('pubHost', () => { queueing = false; queueTry = 0; clearTimeout(queueTimer); $('queue-msg').textContent = ''; startWarmup(); });
+
+$('btn-play').onclick = () => { if (isMP() || G.phase !== 'menu') return; initAudio(); lockPointer(canvas); queueGame(); };
+$('btn-offline').onclick = () => { if (isMP() || G.phase !== 'menu') return; initAudio(); lockPointer(canvas); G.mode = mode; startWarmup(); };
+
 function afterStart() { if (touchMode || !locked) { $('menu').classList.add('hidden'); } showTouch(true); }
 $('btn-host').onclick = () => {
   if (isMP()) return;
   initAudio();
-  for (const id of ['btn-play', 'btn-host', 'btn-join']) $(id).disabled = true;
+  menuBusy(true); G.mode = mode;
   $('lobby').classList.remove('hidden'); $('lobby-msg').textContent = 'Lobby wird erstellt …';
-  try { hostLobby(playerName(), updateLobby); } catch (e) { $('lobby-msg').textContent = e.message; }
+  try { hostLobby(playerName(), mode, updateLobby); } catch (e) { $('lobby-msg').textContent = e.message; }
 };
 $('btn-join').onclick = () => {
   const code = $('code').value.trim().toUpperCase();
   if (code.length < 4 || isMP()) return;
   initAudio();
-  for (const id of ['btn-play', 'btn-host', 'btn-join']) $(id).disabled = true;
+  menuBusy(true);
   $('lobby').classList.remove('hidden'); $('lobby-code').textContent = code; $('lobby-msg').textContent = 'Verbinde …';
   try { joinLobby(code, playerName(), updateLobby); } catch (e) { $('lobby-msg').textContent = e.message; }
 };
@@ -155,7 +195,7 @@ function updateLobby(err) {
   if (isHost()) {
     $('lobby-code').textContent = NET.code;
     $('btn-start').classList.remove('hidden');
-    $('lobby-msg').textContent = `${names.length} Spieler · Rest wird mit Bots aufgefüllt. Code an Freunde schicken.`;
+    $('lobby-msg').textContent = `${G.mode === 'duo' ? 'Duo' : 'Solo'} · ${names.length} Spieler · Rest wird mit Bots aufgefüllt. Code an Freunde schicken.`;
   } else $('lobby-msg').textContent = names.length ? 'Verbunden – warte auf den Host …' : 'Verbinde …';
 }
 
@@ -169,14 +209,17 @@ function openPause() {
   if (G.ended || !G.player) return;
   $('pause-title').textContent = isMP() ? 'Menü (Spiel läuft weiter)' : 'Pause';
   $('btn-resume').textContent = 'Weiter';
+  $('btn-restart').classList.toggle('hidden', isMP());
   $('pause').classList.remove('hidden');
   if (!isMP()) G.paused = true;
   if (locked) document.exitPointerLock();
 }
-$('btn-restart').onclick = $('btn-again').onclick = () => { setUnloadGuard(false); location.reload(); };
+$('btn-restart').onclick = () => { if (isMP()) return; resetRound(); startWarmup(); lockPointer(canvas); };
+$('btn-again').onclick = () => playAgain();
+$('btn-menu').onclick = $('btn-pmenu').onclick = () => toMenu();
 
 function onLock(isLocked) {
-  if (isLocked) { $('menu').classList.add('hidden'); $('pause').classList.add('hidden'); G.paused = false; return; }
+  if (isLocked) { if (G.phase !== 'menu') $('menu').classList.add('hidden'); $('pause').classList.add('hidden'); G.paused = false; return; }
   if (G.ended || G.phase === 'menu' || G.phase === 'loading' || touchMode) return;
   openPause();
 }
@@ -195,18 +238,8 @@ function placeOnPad(a, i) {
 
 function showHud() { $('hud').classList.remove('hidden'); $('menu').classList.add('hidden'); setUnloadGuard(true); canvas.dataset.play = '1'; }
 
-function startWarmup() {
-  G.phase = 'warmup'; G.phaseT = WARMUP;
-  showHud(); setTimeout(afterStart, 0);
-  G.player = createActor(isMP() ? NET.name : 'Du', false, 0);
-  setupPlayer(G.player);
-  if (isHost()) createRemoteActors();
-  createBots(TOTAL - G.actors.length);
-  const order = G.actors.slice(1).sort(() => Math.random() - 0.5);
-  placeOnPad(G.player, 0);
-  order.forEach((a, i) => placeOnPad(a, i + 1));
-  if (isHost()) sendStart();
-  for (let i = 0; i < 18; i++) {             // Aufwärm-Loot auf der Spawn-Insel
+function warmupLoot() {                       // Aufwärm-Loot auf der Spawn-Insel
+  for (let i = 0; i < 18; i++) {
     const ang = Math.random() * Math.PI * 2, d = rand(8, G.spawnRadius - 14);
     const x = G.spawnCenter.x + Math.cos(ang) * d, z = G.spawnCenter.z + Math.sin(ang) * d;
     if (!isLand(x, z)) continue;
@@ -214,21 +247,134 @@ function startWarmup() {
   }
 }
 
-// Client: Runde vom Host übernehmen
+function startWarmup() {
+  queueing = false;
+  if (isMP() && NET.mode) G.mode = NET.mode;
+  G.phase = 'warmup'; G.phaseT = WARMUP;
+  showHud(); setTimeout(afterStart, 0);
+  G.player = createActor(isMP() ? NET.name : 'Du', false, 0);
+  setupPlayer(G.player);
+  if (isHost()) createRemoteActors();
+  createBots(Math.max(0, total() - G.actors.length));
+  const order = G.actors.slice(1).sort(() => Math.random() - 0.5);
+  placeOnPad(G.player, 0);
+  order.forEach((a, i) => placeOnPad(a, i + 1));
+  if (isHost()) sendStart();
+  warmupLoot();
+}
+
+// Alles für eine neue Runde zurücksetzen (ohne die Seite neu zu laden)
+function resetRound() {
+  G.round = (G.round || 0) + 1;
+  for (const a of G.actors) G.scene.remove(a.model);
+  G.actors.length = 0; G.player = null;
+  for (const l of G.loot) G.scene.remove(l.group);
+  G.loot.length = 0;
+  restoreWorld();
+  for (const p of G.pads) G.scene.remove(p.mesh);
+  G.pads.length = 0;
+  for (const p of G.projectiles) G.scene.remove(p.mesh);
+  G.projectiles.length = 0;
+  for (const t of G.throwables) G.scene.remove(t.mesh);
+  G.throwables.length = 0;
+  resetCars(); resetStorm();
+  if (G.bus && G.bus.model) G.scene.remove(G.bus.model);
+  G.bus = null;
+  Object.assign(G, { pings: [], spectate: null, winner: null, victory: null, ended: false, timeScale: 1, matchStart: 0, paused: false, invOpen: false });
+  border.visible = true;
+  document.body.classList.remove('ended', 'victory', 'inv-open');
+  for (const id of ['end', 'victory', 'pause', 'inv']) $(id).classList.add('hidden');
+  $('feed').innerHTML = '';
+}
+
+// Hauptmenü: Verbindung trennen, Welt zurücksetzen
+function toMenu(msg) {
+  leaveNet(); resetRound();
+  G.phase = 'menu'; G.mode = mode;
+  $('hud').classList.add('hidden'); $('menu').classList.remove('hidden'); $('lobby').classList.add('hidden');
+  showTouch(false); setUnloadGuard(false); canvas.dataset.play = '0';
+  if (locked) document.exitPointerLock();
+  queueing = false; menuBusy(false);
+  $('queue-msg').textContent = msg || '';
+}
+
+// "Nochmal spielen": offline sofort neue Runde, online sofort in den Wartebereich auf der Spawn-Insel
+function playAgain() {
+  if (!G.player) return;
+  if (!isMP()) { resetRound(); startWarmup(); lockPointer(canvas); return; }
+  leaveEnd();
+  if (G.phase === 'warmup') return;
+  G.player.wait = true;
+  if (isHost()) requeueActor(G.player); else req.requeue();
+  lockPointer(canvas);
+}
+function leaveEnd() {
+  Object.assign(G, { ended: false, victory: null, timeScale: 1, spectate: null });
+  document.body.classList.remove('ended', 'victory');
+  $('end').classList.add('hidden'); $('victory').classList.add('hidden');
+  showHud(); showTouch(true);
+}
+on('requeue', a => requeueActor(a));
+function requeueActor(a) {
+  if (G.phase === 'warmup' || (a.alive && !a.wait)) return;
+  a.wait = true; a.spec = false;
+  if (!a.isRemote) resetLoadout(a);
+  placeOnPad(a, (Math.random() * G.spawnPoints.length) | 0);
+  if (a.isRemote) net.respawn(a);
+  const onIsland = l => Math.hypot(l.pos.x - G.spawnCenter.x, l.pos.z - G.spawnCenter.z) < G.spawnRadius;
+  if (G.loot.filter(onIsland).length < 6) warmupLoot();
+}
+
+// Host: Spieler kommt dazu, während schon gespielt wird
+on('lateJoin', entry => {
+  const a = createActor(entry.name, false, G.actors.length);
+  a.isRemote = true; a.conn = entry.conn; entry.actor = a;
+  if (G.phase === 'warmup') {
+    placeOnPad(a, (Math.random() * G.spawnPoints.length) | 0);
+    const bots = G.actors.filter(x => x.isBot);
+    if (G.actors.length > total() && bots.length) { const b = bots[bots.length - 1]; removeActor(b); netActorRemove(b); }
+    netActorAdd(a, entry); sendStartTo(entry);
+  } else {                                   // Runde läuft: zuschauen, bis sie vorbei ist
+    a.alive = false; a.state = 'dead'; a.model.visible = false; a.spec = true;
+    netActorAdd(a, entry); sendStartTo(entry, true);
+  }
+  emit('feed', `${a.name} ist der Lobby beigetreten`, false); net.feed(`${a.name} ist der Lobby beigetreten`);
+});
+on('netLeave', a => {
+  if (!G.actors.includes(a)) return;
+  if (a.alive && !a.wait && G.phase !== 'warmup') { eliminate(a, null, 'Verbindung getrennt'); return; }
+  removeActor(a); netActorRemove(a);
+  if (G.spectate === a) G.spectate = null;
+  emit('feed', `${a.name} hat das Spiel verlassen`, false); net.feed(`${a.name} hat das Spiel verlassen`);
+});
+
+// Client: Runde vom Host übernehmen (auch jede neue Runde und als Nachzügler)
 on('netStart', d => {
-  if (G.player) return;
+  if (G.player) resetRound();
+  queueing = false; queueTry = 0; clearTimeout(queueTimer); $('queue-msg').textContent = '';
+  G.mode = d.mode || 'solo';
   for (const r of d.actors) {
-    const a = createActor(r.name, r.bot, r.look, r.id);
-    a.pos.set(r.p[0], r.p[1], r.p[2]);
-    if (r.id === d.you) { G.player = a; setupPlayer(a); a.name = r.name; }
-    else { a.isPuppet = true; a.netPos = a.pos.clone(); a.netYaw = 0; a.netPitch = 0; }
+    if (r.id === d.you) {
+      const a = createActor(r.name, false, r.look, r.id);
+      a.pos.set(r.p[0], r.p[1], r.p[2]); a.team = r.team;
+      G.player = a; setupPlayer(a);
+    } else { const a = makePuppet(r); a.alive = !!r.al; a.model.visible = a.alive; }
   }
   G.player.state = 'air';
-  G.phase = 'warmup'; G.phaseT = d.pt;
+  G.phase = d.ph || 'warmup'; G.phaseT = d.pt;
+  applySync(d.sync);
   showHud(); showTouch(true);
-  $('pause-title').textContent = 'Die Runde startet!';
-  $('btn-resume').textContent = 'Klicken zum Mitspielen';
-  $('pause').classList.remove('hidden');
+  if (d.spec) {
+    const a = G.player; a.alive = false; a.state = 'dead'; a.model.visible = false; a.spec = true;
+    G.matchStart = G.time; border.visible = false;
+    endGame('spec', null); return;
+  }
+  if (!locked && !touchMode) {
+    $('pause-title').textContent = 'Die Runde startet!';
+    $('btn-resume').textContent = 'Klicken zum Mitspielen';
+    $('btn-restart').classList.add('hidden');
+    $('pause').classList.remove('hidden');
+  }
 });
 on('respawnLocal', (p, yaw) => {
   const a = G.player;
@@ -237,11 +383,28 @@ on('respawnLocal', (p, yaw) => {
   a.hp = 100; a.shield = 0; a.alive = true; a.model.visible = true;
 });
 on('respawn', a => {
-  if (G.phase !== 'warmup') return;
+  if ((G.phase !== 'warmup' && !a.wait) || !G.actors.includes(a)) return;
   resetLoadout(a);
   placeOnPad(a, (Math.random() * G.spawnPoints.length) | 0);
   net.respawn(a);
 });
+on('wheel', () => banner('Du lenkst den Battle-Bus!', `${bindLabel('left')} / ${bindLabel('right')} lenken · ${bindLabel('jump')} abspringen`, 5));
+on('netLost', () => {
+  if (!isClient()) return;
+  if (NET.public) {                              // Host ist weg: neue öffentliche Lobby suchen (einer wird neuer Host)
+    const m = NET.public;
+    toMenu('Host hat die Lobby verlassen – suche eine neue …');
+    setMode(m); queueTry = 0;
+    setTimeout(() => { if (G.phase === 'menu' && !isMP()) queueGame(); }, 300 + Math.random() * 1500);
+  } else endGame('lost', null);
+});
+
+// Duo: Menschen zuerst zusammen, Rest mit Bots auffüllen
+function assignTeams() {
+  const list = G.actors.slice().sort((x, y) => (x.isBot - y.isBot) || x.id - y.id);
+  list.forEach((a, i) => { a.team = G.mode === 'duo' ? i >> 1 : i; if (a.ai) a.ai.mate = null; });
+  if (G.mode === 'duo') for (const a of list) if (a.ai) a.ai.mate = list.find(o => o !== a && o.team === a.team) || null;
+}
 
 function startBusPhase() {
   G.phase = 'bus';
@@ -250,8 +413,10 @@ function startBusPhase() {
     if (a.car) { a.car.driver = null; a.car = null; }
     resetLoadout(a);
     a.hp = 100; a.shield = 0; a.alive = true; a.kills = 0; a.slideT = 0; a.crouch = false; a.dmgDealt = 0; a.emoteT = 0;
+    a.wait = false; a.spec = false; a.thanked = false; a.place = 0;
     a.state = 'bus'; a.model.visible = false; a.vel.set(0, 0, 0);
   }
+  assignTeams();
   border.visible = false;
   startBus();
   G.matchStart = G.time;
@@ -276,6 +441,7 @@ on('clientBus', () => {
   if (a.car) { a.car.driver = null; a.car = null; }
   resetLoadout(a);
   a.hp = 100; a.shield = 0; a.alive = true; a.kills = 0; a.slideT = 0; a.crouch = false; a.dmgDealt = 0; a.emoteT = 0;
+  a.wait = false; a.thanked = false; a.place = 0;
   a.state = 'bus'; a.model.visible = false;
   for (const o of G.actors) if (o !== a) o.model.visible = false;
   border.visible = false;
@@ -284,32 +450,36 @@ on('clientBus', () => {
 
 on('eliminated', (t, killer) => {
   if (G.phase !== 'bus' && G.phase !== 'match') return;
+  if (G.ended) updateEndBar();
   if (t === G.player) {
-    G.spectate = killer && killer !== t && killer.alive ? killer : null;
-    const kn = killer && killer !== t ? killer.name : null;
-    setTimeout(() => endGame('lose', kn), 1600);
+    const mate = mateOf(t);
+    G.spectate = mate && mate.alive ? mate : killer && killer !== t && killer.alive ? killer : null;
+    const kn = killer && killer !== t ? killer.name : null, r = G.round;
+    setTimeout(() => { if (G.round === r && !G.player.alive) endGame('lose', kn); }, 1600);
   }
-  if (!isClient() && aliveCount() === 1) {
-    const w = G.actors.find(a => a.alive);
-    net.end(w);
-    announceWinner(w);
+  if (!isClient() && !G.winner && aliveTeams() <= 1) {
+    const w = G.actors.find(a => a.alive && !a.wait);
+    if (w) { net.end(w); announceWinner(w); }
   }
 });
 on('netEnd', id => announceWinner(G.actors.find(a => a.id === id)));
 function announceWinner(w) {
-  if (!w) return;
+  if (!w || G.winner) return;
   G.winner = w;
-  if (w === G.player) { startVictory(); return; }
+  const r = G.round;
+  if (isHost()) setTimeout(() => { if (G.round === r) { resetRound(); startWarmup(); } }, 10000);   // nächste Runde für alle
+  if (G.player.wait) { emit('feed', `${w.name} hat die Runde gewonnen – gleich geht's los`, true); return; }
+  const mine = w === G.player || (G.mode === 'duo' && teamOf(w) === teamOf(G.player));
+  if (mine) { startVictory(w); return; }
   w.emoteT = 1e9; w.emoteStyle = 1;                   // Gewinner tanzt
   G.spectate = w;
-  setTimeout(() => { if (!G.ended) endGame('lose', null); updateEndBar(); }, 1700);
+  setTimeout(() => { if (G.round !== r || G.player.wait) return; if (!G.ended) endGame('lose', null); updateEndBar(); }, 1700);
 }
-on('netLost', () => endGame('lost', null));
 
 // ---------- Rundenende ----------
 let endKind = 'lose', killerName = null;
 function endGame(kind, kname) {
-  if (G.ended) return;
+  if (G.ended) { endKind = kind; if (kname) killerName = kname; updateEndBar(); $('end').classList.remove('hidden'); return; }
   G.ended = true; endKind = kind; killerName = kname;
   setUnloadGuard(false); canvas.dataset.play = '0';
   document.body.classList.add('ended');
@@ -321,35 +491,43 @@ function endGame(kind, kname) {
   document.exitPointerLock();
 }
 function updateEndBar() {
+  if (!G.player) return;
   const a = G.player, t = Math.max(0, (a.alive || endKind === 'win' ? G.time : (a.deathTime || G.time)) - (G.matchStart || G.time));
-  const win = endKind === 'win';
+  const win = endKind === 'win', spec = endKind === 'spec', lost = endKind === 'lost';
   $('end').classList.toggle('win', win);
-  $('end-place').textContent = win ? '#1 von ' + G.actors.length : endKind === 'lost' ? '' : '#' + (a.place || '?');
-  $('end-title').textContent = win ? 'Victory Royale' : endKind === 'lost' ? 'Verbindung verloren'
-    : G.winner && G.winner !== a ? G.winner.name + ' hat gewonnen' : 'Ausgeschieden';
-  const stats = [[a.kills, 'Eliminierungen'], [Math.round(a.dmgDealt || 0), 'Schaden'], [`${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, 'Überlebt']];
-  if (!win && killerName) stats.push([killerName, 'Eliminiert von']);
+  $('end-place').textContent = win ? '#1' + (G.mode === 'duo' ? ' · Duo' : ' von ' + G.actors.length) : lost || spec ? '' : a.place ? '#' + a.place : G.mode === 'duo' && (mateOf(a) || {}).alive ? 'Dein Team ist noch im Spiel' : '';
+  $('end-title').textContent = win ? 'Victory Royale' : lost ? 'Verbindung verloren' : spec ? 'Runde läuft – du schaust zu'
+    : G.winner && teamOf(G.winner) !== teamOf(a) ? G.winner.name + ' hat gewonnen' : 'Ausgeschieden';
+  const stats = spec ? [[aliveCount(), 'Noch im Spiel']] :
+    [[a.kills, 'Eliminierungen'], [Math.round(a.dmgDealt || 0), 'Schaden'], [`${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, 'Überlebt']];
+  if (!win && !spec && killerName) stats.push([killerName, 'Eliminiert von']);
   $('end-stats').innerHTML = stats.map(([v, l]) => `<div><b>${String(v).replace(/</g, '&lt;')}</b>${l}</div>`).join('');
   $('btn-spectate').classList.toggle('hidden', win);
+  $('btn-again').classList.toggle('hidden', lost);
+  $('btn-again').textContent = spec ? 'Zum Wartebereich' : 'Nochmal spielen';
 }
 // Sieg: Zeitlupe, Kamerafahrt, Konfetti, großer Schriftzug, danach die Leiste
-function startVictory() {
+function startVictory(w) {
   if (G.victory) return;
   G.victory = { t: 0 };
   document.body.classList.add('ended', 'victory');
   showTouch(false);
   const a = G.player;
-  a.emoteT = 1e9; a.emoteStyle = 0; a.ads = false;
-  $('victory').querySelector('.v3').textContent = `${a.kills} Eliminierungen · ${G.actors.length} Spieler`;
+  if (a.alive) { a.emoteT = 1e9; a.emoteStyle = 0; a.ads = false; }
+  else { G.spectate = w; w.emoteT = 1e9; w.emoteStyle = 0; }
+  $('victory').querySelector('.v3').textContent = `${a.kills} Eliminierungen · ${G.actors.length} Spieler` + (G.mode === 'duo' ? ' · Duo' : '');
   $('victory').classList.remove('hidden');
   sfx('victory'); setTimeout(() => sfx('horn'), 700);
   if (!isMP()) G.timeScale = 0.3;
-  setTimeout(() => { $('victory').classList.add('hidden'); endGame('win', null); }, 6500);
+  const r = G.round;
+  setTimeout(() => { if (G.round !== r || !G.victory) return; $('victory').classList.add('hidden'); endGame('win', null); }, 6500);
 }
 $('btn-spectate').onclick = () => nextSpectate();
 // Zuschauen: nächster Spieler per Leertaste/Klick/Tippen/A, Esc (oder B/Menü) zurück zum Ende-Bildschirm
 function nextSpectate() {
-  const alive = G.actors.filter(a => a.alive && a !== G.player).sort((x, y) => (x.isBot - y.isBot) || x.id - y.id);
+  const mate = mateOf(G.player);
+  const alive = G.actors.filter(a => a.alive && !a.wait && a !== G.player)
+    .sort((x, y) => ((y === mate) - (x === mate)) || (x.isBot - y.isBot) || x.id - y.id);
   if (!alive.length) { G.spectate = null; return; }
   const i = alive.indexOf(G.spectate);
   G.spectate = alive[(i + 1) % alive.length];
@@ -375,11 +553,14 @@ function update(dt) {
     if (!client) { G.phaseT -= dt; if (G.phaseT <= 0) startBusPhase(); }
     message(`Battle-Bus startet in ${Math.max(0, Math.ceil(G.phaseT))}`, null);
   } else if (G.phase === 'bus' || G.phase === 'match') {
-    const inBus = G.player.state === 'bus' && G.bus;
-    message(inBus ? (G.bus.doors ? 'Leertaste: Abspringen' : 'Türen öffnen sich …') : '', null);
+    const a = G.player, b = G.bus, inBus = a.state === 'bus' && b;
+    if (a.wait) message(G.winner ? 'Nächste Runde startet gleich …' : `Wartebereich · nächste Runde startet nach diesem Match · noch ${aliveCount()} im Spiel`, null);
+    else message(!inBus ? '' : b.driver === a ? `Du lenkst den Bus! ${bindLabel('left')} / ${bindLabel('right')} lenken · ${bindLabel('jump')} abspringen`
+      : !b.doors ? 'Türen öffnen sich …' : `${bindLabel('jump')}: Abspringen` + (a.thanked ? '' : ` · ${bindLabel('emote')}: Beim Busfahrer bedanken`), null);
     if (!client && G.phase === 'bus' && G.bus && G.bus.done && !G.actors.some(a => a.state === 'bus')) G.phase = 'match';
   }
 
+  updateInventory(dt);
   updatePlayer(dt);
   if (!client) updateBots(dt);
   updateBus(dt);
@@ -389,7 +570,7 @@ function update(dt) {
     if (local) {
       if (a.emoteT > 0) a.emoteT -= dt;
       updateActorCombat(a, dt);
-      if (G.phase === 'warmup') keepInsideBorder(a);
+      if (G.phase === 'warmup' || a.wait) keepInsideBorder(a);
     } else {
       a.model.visible = a.state !== 'bus' && a.state !== 'dead';
       a.kickVis = (a.kickVis || 0) * Math.exp(-dt * 9);
@@ -413,6 +594,7 @@ function update(dt) {
   const p = G.player.state === 'bus' && G.bus ? G.bus.pos : G.player.pos;
   sun.position.set(p.x + 60, p.y + 120, p.z + 40);
   sun.target.position.copy(p);
+  border.visible = G.phase === 'warmup' || !!G.player.wait;
   if (border.visible) border.material.map.offset.y += dt * 0.02;
   updateCamera(dt);
   updateHud(dt);
@@ -421,7 +603,7 @@ function update(dt) {
     if (!G.spectate || !G.spectate.alive) nextSpectate();
     $('end-watch').textContent = G.spectate ? `Du schaust ${G.spectate.name}${G.spectate.isBot ? '' : ' (Spieler)'} zu · ${touchMode ? 'Tippen' : 'Leertaste / Klick'}: nächster · ${touchMode ? '' : 'Esc: Leiste ein/aus'}` : '';
   } else if (G.ended) $('end-watch').textContent = '';
-  if (G.victory) { G.victory.t += dt / (G.timeScale || 1); if (G.victory.t > 1.4) G.timeScale = 1; if (Math.random() < 0.5) confetti(G.player.pos); }
+  if (G.victory) { G.victory.t += dt / (G.timeScale || 1); if (G.victory.t > 1.4) G.timeScale = 1; if (Math.random() < 0.5) confetti((G.player.alive ? G.player : G.spectate || G.player).pos); }
 }
 
 // Truhen funkeln und summen in der Nähe
@@ -448,11 +630,15 @@ function padMenus() {
     else if (G.player && G.phase !== 'menu') { if ($('pause').classList.contains('hidden')) openPause(); else resumeGame(true); }
   }
   if (vh('jump') || vh('padUse')) {
-    if (!$('menu').classList.contains('hidden') && G.phase === 'menu' && !$('btn-play').disabled && !isMP()) { initAudio(); startWarmup(); $('menu').classList.add('hidden'); }
+    if (!$('menu').classList.contains('hidden') && G.phase === 'menu' && !$('btn-play').disabled && !isMP()) { initAudio(); queueGame(); }
     else if (!$('pause').classList.contains('hidden') && !G.ended) resumeGame(true);
     else if (spectating()) nextSpectate();
   }
   if (vh('crouch') && spectating()) $('end').classList.toggle('hidden');
+  if (G.ended && navigator.getGamepads && [...navigator.getGamepads()].some(p => p)) {   // Controller: Y nochmal spielen, View Hauptmenü
+    if (vh('pickaxe') && !$('btn-again').classList.contains('hidden')) playAgain();
+    else if (vh('map')) toMenu();
+  }
 }
 
 function frame() {

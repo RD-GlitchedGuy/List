@@ -14,7 +14,13 @@ export function placeCar(c) {
   eul.set(c.pitch, c.yaw, c.roll); c.root.quaternion.setFromEuler(eul);
   c.root.position.copy(c.pos);
 }
-export function initCars() { for (const c of G.cars) { c.pos.y = groundAt(c, c.pos.x, c.pos.z); placeCar(c); } }
+export function initCars() { for (const c of G.cars) { c.pos.y = groundAt(c, c.pos.x, c.pos.z); placeCar(c); c.home = { pos: c.pos.clone(), yaw: c.yaw }; } }
+export function resetCars() {
+  for (const c of G.cars) {
+    c.pos.copy(c.home.pos); c.yaw = c.home.yaw; c.pitch = c.roll = 0; c.speed = 0; c.vy = 0; c.steer = 0;
+    c.driver = null; c.netPos = null; placeCar(c);
+  }
+}
 
 function groundAt(c, x, z) { return groundBelow(q.set(x, c.pos.y + 2.5, z), 8); }
 

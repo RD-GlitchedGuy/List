@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { G, on, RARITIES } from './state.js';
 import { DEFS, AMMO, stat } from './items.js';
-import { aliveCount } from './actors.js';
+import { aliveCount, mateOf } from './actors.js';
 import { stormInfo, outside } from './storm.js';
 import { camState } from './player.js';
 import { interactLabel } from './loot.js';
@@ -88,6 +88,7 @@ export function updateHud(dt) {
   objT -= dt; el.objhp.style.opacity = objT > 0 ? 1 : 0;
   stormBanners();
   updatePoi(a);
+  updateMate(a);
   el.scoreboard.classList.toggle('hidden', !down('scoreboard'));
   if (down('scoreboard')) scoreboard();
   el['hp-num'].textContent = Math.ceil(Math.max(0, a.hp));
@@ -175,6 +176,24 @@ export function updateHud(dt) {
   if (bigMap) drawBigMap();
 }
 
+// ---------- Duo: Teamkamerad (Markierung über dem Kopf + Lebensanzeige) ----------
+function updateMate(a) {
+  const m = G.mode === 'duo' && G.phase !== 'warmup' && !a.wait ? mateOf(a) : null;
+  const box = $('mate-box'), tag = $('mate-tag');
+  box.classList.toggle('hidden', !m); 
+  if (!m) { tag.style.display = 'none'; return; }
+  box.querySelector('b').textContent = m.name;
+  box.querySelector('.mh').style.width = Math.max(0, m.hp) + '%';
+  box.querySelector('.ms').style.width = Math.max(0, m.shield) + '%';
+  box.classList.toggle('out', !m.alive);
+  const show = m.alive && m.state !== 'bus' && m.model.visible;
+  const s = show ? toScreen(v3.copy(m.pos).setY(m.pos.y + 2.25)) : null;
+  if (!s || (G.spectate === m && !a.alive)) { tag.style.display = 'none'; return; }
+  tag.style.display = 'block';
+  tag.style.left = Math.max(30, Math.min(innerWidth - 30, s[0])) + 'px'; tag.style.top = Math.max(20, Math.min(innerHeight - 20, s[1])) + 'px';
+  tag.querySelector('span').textContent = `${m.name} · ${Math.round(m.pos.distanceTo(a.pos))} m`;
+}
+
 // ---------- Kartenbild: einmal die echte Map von oben rendern ----------
 const MAP_PX = 1536, SC = MAP_PX / 640;
 let mapImg, waterCol = '#2b5f8c';
@@ -247,6 +266,11 @@ function drawMap(ctx, size, cx, cz, span, big) {
   }
   for (const p of G.pings) {
     ctx.fillStyle = '#f2c230'; ctx.save(); ctx.translate(X(p.pos.x), Z(p.pos.z)); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
+  }
+  const mt = G.mode === 'duo' && G.phase !== 'warmup' ? mateOf(G.player) : null;
+  if (mt && mt.alive && mt.state !== 'bus') {
+    ctx.fillStyle = '#4aa3ff'; ctx.strokeStyle = '#0d1a2a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(X(mt.pos.x), Z(mt.pos.z), big ? 6 : 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   }
   const a = !G.player.alive && G.spectate && G.spectate.alive ? G.spectate : G.player;
   const px = a.state === 'bus' && G.bus ? G.bus.pos.x : a.pos.x, pz = a.state === 'bus' && G.bus ? G.bus.pos.z : a.pos.z;

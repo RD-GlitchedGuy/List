@@ -6,7 +6,7 @@ import { DEFS } from './items.js';
 import { switchSlot, cycleSlot } from './actors.js';
 import { updateMovement, startSlide } from './movement.js';
 import { trigger, startReload, current } from './combat.js';
-import { exitBus } from './bus.js';
+import { exitBus, thankDriver } from './bus.js';
 import { findInteract, interact } from './loot.js';
 import { nearestCar, driveCar, seatActor } from './cars.js';
 import { requestCar, leaveCar } from './net.js';
@@ -38,14 +38,19 @@ export function updatePlayer(dt) {
   const s = 0.0022 * G.settings.sens * (a.ads ? Math.max(0.25, zoom) * G.settings.adsSens : 1);
   // Controller-Stick: Drehgeschwindigkeit statt Mausweg
   const ps = 2.6 * G.settings.padSens * (a.ads ? Math.max(0.3, zoom) * G.settings.adsSens : 1) * dt;
-  a.yaw -= mouse.dx * s + analog.lookX * ps * 1.25;
-  a.pitch = THREE.MathUtils.clamp(a.pitch - (mouse.dy * s + analog.lookY * ps * 0.8) * (G.settings.invertY ? -1 : 1), -1.45, 1.45);
+  if (!G.invOpen) {
+    a.yaw -= mouse.dx * s + analog.lookX * ps * 1.25;
+    a.pitch = THREE.MathUtils.clamp(a.pitch - (mouse.dy * s + analog.lookY * ps * 0.8) * (G.settings.invertY ? -1 : 1), -1.45, 1.45);
+  }
   view.recoil *= Math.exp(-dt * 7);
   camState.interact = null; camState.car = null;
   if (!a.alive || G.victory) return;
 
   if (a.state === 'bus') {
-    if (hit('jump') && G.bus && G.bus.doors) exitBus(a);
+    const b = G.bus;
+    if (hit('emote')) thankDriver(a);
+    if (b && b.driver === a) b.steer = THREE.MathUtils.clamp((down('right') ? 1 : 0) - (down('left') ? 1 : 0) + analog.mx + touchStick.x, -1, 1);
+    if (hit('jump') && b && b.doors) { if (b.driver === a) b.steer = 0; exitBus(a); }
     return;
   }
 
@@ -90,12 +95,12 @@ export function updatePlayer(dt) {
 
   const it = current(a);
   const isGun = it && DEFS[it.key].type === 'gun';
-  a.ads = !!(down('aim') && isGun && (a.state === 'ground' || a.state === 'air') && a.reloadT <= 0 && !a.slideT);
+  a.ads = !!(!G.invOpen && down('aim') && isGun && (a.state === 'ground' || a.state === 'air') && a.reloadT <= 0 && !a.slideT);
   if (a.ads) a.sprint = false;
   a.adsT = THREE.MathUtils.clamp(a.adsT + (a.ads ? dt : -dt) * 5, 0, 1);
 
   const dive = a.state === 'skydive' ? Math.max(0, -Math.sin(a.pitch)) * (f >= 0 ? 1 : 0.3) : 0;
-  updateMovement(a, dt, { mx, mz, jump: hit('jump'), dive });
+  updateMovement(a, dt, { mx, mz, jump: hit('jump') && !G.invOpen, dive });
 
   // Slots
   for (let i = 1; i <= 5; i++) if (hit('slot' + i)) switchSlot(a, i);
@@ -117,14 +122,14 @@ export function updatePlayer(dt) {
 
   // Feuern / Benutzen
   const canAct = a.state === 'ground' || a.state === 'air' || a.state === 'grapple';
-  if (canAct && (down('fire') || hit('fire'))) {
+  if (canAct && !G.invOpen && (down('fire') || hit('fire'))) {
     if (a.sprint) a.sprint = false;
     const [o, d] = a.aimRay();
     trigger(a, o, d, hit('fire'));
   }
 
   // Pingen mit mittlerer Maustaste
-  if (hit('ping')) {
+  if (hit('ping') && !G.invOpen) {
     const hit = raycast(G.camera.position, camState.dir, 900);
     if (hit) { G.pings = [{ pos: hit.point.clone(), t: G.time }]; sfx('ping'); }
   }

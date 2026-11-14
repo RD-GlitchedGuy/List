@@ -55,13 +55,14 @@ export function damage(t, amount, attacker, opts = {}) {
   if (!t.alive || t.state === 'bus' || amount <= 0) return;
   if (isClient()) { if (t === G.player && opts.cause === 'Sturz') req.selfDamage(amount, 'Sturz'); return; }
   // Startinsel vor Rundenbeginn: niemand nimmt Schaden, Treffer werden nur angezeigt
-  if (G.phase === 'warmup') {
+  if (G.phase === 'warmup' || t.wait || (attacker && attacker.wait)) {
     if (attacker && attacker !== t) {
       const ev = { target: t, amount: Math.round(amount), shield: t.shield > 0, head: !!opts.head, pos: opts.pos, preview: true };
       if (attacker === G.player) emit('dealt', ev); else if (attacker.isRemote) net.dealt(attacker, ev);
     }
     return;
   }
+  if (sameTeam(attacker, t)) return;          // Duo: kein Teamschaden
   let rest = amount, toShield = 0;
   if (!opts.ignoreShield) { toShield = Math.min(t.shield, rest); t.shield -= toShield; rest -= toShield; }
   t.hp -= rest;
@@ -74,7 +75,22 @@ export function damage(t, amount, attacker, opts = {}) {
   if (t.hp <= 0) eliminate(t, attacker && attacker !== t ? attacker : (t.lastHitBy && G.time - t.lastHitTime < 8 ? t.lastHitBy : null), opts.cause || (opts.weapon && DEFS[opts.weapon].name));
 }
 
-export function aliveCount() { return G.actors.filter(a => a.alive).length; }
+export function aliveCount() { return G.actors.filter(a => a.alive && !a.wait).length; }
+export function aliveTeams() { const s = new Set(); for (const a of G.actors) if (a.alive && !a.wait) s.add(teamOf(a)); return s.size; }
+export const teamOf = a => (a.team !== undefined && a.team !== null && a.team >= 0 ? a.team : 1000 + a.id);
+export const sameTeam = (a, b) => G.mode === 'duo' && a && b && a !== b && teamOf(a) === teamOf(b);
+export const mateOf = a => G.mode === 'duo' ? G.actors.find(o => o !== a && teamOf(o) === teamOf(a)) : null;
+export function removeActor(a) {
+  G.scene.remove(a.model);
+  const i = G.actors.indexOf(a); if (i >= 0) G.actors.splice(i, 1);
+  if (a.car) { if (a.car.driver === a) a.car.driver = null; a.car = null; }
+  a.alive = false; a.removed = true;
+}
+// Platzierung: im Duo zählt das Team, erst wenn beide raus sind
+export function setPlace(t, pl) {
+  t.place = pl;
+  if (G.mode === 'duo' && pl) for (const o of G.actors) if (o !== t && teamOf(o) === teamOf(t) && !o.place) o.place = pl;
+}
 
 export function eliminate(t, killer, cause) {
   if (!t.alive) return;
@@ -87,10 +103,15 @@ export function eliminate(t, killer, cause) {
   emit('elimFx', t.pos.clone());
   if (t.car) { t.car.driver = null; t.car = null; }
   emit('feed', feedText(t, killer, cause), t === G.player || killer === G.player);
-  t.place = aliveCount() + 1;
+  const warm = G.phase === 'warmup' || t.wait;
+  if (!warm) {
+    if (G.mode !== 'duo') t.place = aliveCount() + 1;
+    else if (G.actors.some(o => o !== t && o.alive && !o.wait && teamOf(o) === teamOf(t))) t.place = 0;
+    else setPlace(t, aliveTeams() + 1);
+  }
   net.elim(t, killer, cause);
 
-  if (G.phase === 'warmup') {           // Aufwärmphase: einfach neu spawnen
+  if (warm) {                           // Aufwärmphase / Wartebereich: einfach neu spawnen
     setTimeout(() => emit('respawn', t), 2500);
     return;
   }

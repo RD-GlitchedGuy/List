@@ -316,7 +316,7 @@ function useItem(a, it, origin, dir) {
 
 export function addPad(p, yaw) {
   const m = makeLaunchPad(); m.position.copy(p); m.rotation.y = yaw; G.scene.add(m);
-  G.pads.push({ pos: p.clone(), mesh: m, r: 1.3, power: 46 });
+  G.pads.push({ pos: p.clone(), yaw, mesh: m, r: 1.3, power: 46 });
 }
 function addThrowable(key, from, v, owner, visual) {
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), mat(DEFS[key].color));

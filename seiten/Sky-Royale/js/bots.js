@@ -2,10 +2,10 @@
 import * as THREE from 'three';
 import { G, rand, pick } from './state.js';
 import { DEFS, AMMO } from './items.js';
-import { createActor, switchSlot } from './actors.js';
+import { createActor, switchSlot, sameTeam } from './actors.js';
 import { updateMovement, startSlide } from './movement.js';
 import { trigger, current } from './combat.js';
-import { exitBus } from './bus.js';
+import { exitBus, thankDriver } from './bus.js';
 import { openChest, pickup } from './loot.js';
 import { lineOfSight, raycast } from './physics.js';
 import { heightAt, isLand } from './world.js';
@@ -46,6 +46,12 @@ export function planBotDrops() {
     t.x += Math.cos(ang) * off; t.z += Math.sin(ang) * off;
     a.ai.dropTarget = t;
     a.ai.jumpProg = rand(0.15, 0.9);
+    a.ai.thankAt = Math.random() < 0.4 ? rand(1, 9) : -1;
+  }
+  // Duo: Bot-Teams landen gemeinsam
+  for (const a of G.actors) {
+    const m = a.ai && a.ai.mate;
+    if (m && m.ai && a.id > m.id) { a.ai.dropTarget = m.ai.dropTarget.clone().add(new THREE.Vector3(rand(-4, 4), 0, rand(-4, 4))); a.ai.jumpProg = m.ai.jumpProg; }
   }
 }
 function lineDist(p, b) {
@@ -61,12 +67,18 @@ export function updateBots(dt) {
 function updateBot(a, dt) {
   const ai = a.ai;
   if (a.state === 'bus') {
-    const b = G.bus;
+    const b = G.bus, m = ai.mate;
+    if (ai.thankAt > 0 && b.t > ai.thankAt) { ai.thankAt = -1; thankDriver(a); }
+    if (m && !m.isBot) {                 // Bot mit echtem Mitspieler: springt mit ihm ab
+      if (b.doors && (m.state !== 'bus' || !m.alive || b.progress > 0.97)) exitBus(a);
+      return;
+    }
     if (b.doors && (Math.hypot(b.pos.x - ai.dropTarget.x, b.pos.z - ai.dropTarget.z) < 95 || b.progress > ai.jumpProg + 0.1)) exitBus(a);
     return;
   }
   if (a.state === 'skydive' || a.state === 'glide' || a.state === 'launch') {
-    const t = ai.dropTarget || a.pos;
+    const m = ai.mate, follow = m && !m.isBot && m.alive && m.state !== 'bus';
+    const t = follow ? m.pos : ai.dropTarget || a.pos;
     const dx = t.x - a.pos.x, dz = t.z - a.pos.z, d = Math.hypot(dx, dz) || 1;
     const k = Math.min(1, d / 8);
     const hAbove = a.pos.y - heightAt(a.pos.x, a.pos.z);
@@ -186,7 +198,7 @@ function decide(a, ai) {
     const range = hasClass(a, 'sniper') ? 140 : 95;
     if (!hasGun(a) && !(ai.target && ai.target.alive && G.time - (a.lastHitTime || -9) < 4)) ai.target = null;
     else if (!ai.target || !ai.target.alive || G.time - ai.targetSeen > 3) {
-      const cands = G.actors.filter(o => o !== a && o.alive && o.state !== 'bus' && o.pos.distanceTo(a.pos) < range)
+      const cands = G.actors.filter(o => o !== a && o.alive && !o.wait && !sameTeam(a, o) && o.state !== 'bus' && o.pos.distanceTo(a.pos) < range)
         .sort((x, y) => x.pos.distanceTo(a.pos) - y.pos.distanceTo(a.pos)).slice(0, 3);
       ai.target = null;
       for (const c of cands) {
@@ -221,6 +233,12 @@ function decide(a, ai) {
       ai.goal = new THREE.Vector3(st.nx + Math.cos(ang) * r, 0, st.nz + Math.sin(ang) * r); ai.goalObj = null;
       return;
     }
+  }
+  // Duo: nicht zu weit vom Teamkameraden weglaufen
+  const m = ai.mate;
+  if (G.mode === 'duo' && m && m.alive && !m.wait && m.state !== 'bus' && m.pos.distanceTo(a.pos) > 32) {
+    ai.goal = m.pos.clone(); ai.goalObj = null; ai.goalSince = G.time; ai.route = planRoute(a, ai.goal);
+    return;
   }
   // Looten
   if (!ai.goalObj || (ai.goalObj.type ? ai.goalObj.opened : !G.loot.includes(ai.goalObj))) {

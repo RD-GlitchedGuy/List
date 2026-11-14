@@ -30,6 +30,7 @@ export const ACTIONS = [
   ['map', 'Karte', 'Sonstiges', 'KeyM', ''],
   ['emote', 'Emote (Tanzen)', 'Sonstiges', 'KeyB', ''],
   ['scoreboard', 'Spielerliste', 'Sonstiges', 'Tab', ''],
+  ['inventory', 'Inventar (halten)', 'Sonstiges', 'AltLeft', 'KeyI'],
 ];
 const STORE = 'skyroyale.binds.v1';
 export const binds = {};
@@ -55,9 +56,9 @@ export const hit = action => virtHit.has(action) || (binds[action] || []).some(c
 
 // ---------- Controller (Gamepad-API, Xbox/PlayStation-Belegung wie Fortnite) ----------
 // A Springen · B Ducken/Rutschen · X Nachladen/Benutzen · Y Spitzhacke · LT Zielen · RT Schießen
-// LB/RB Slot wechseln · L3 Sprinten · Steuerkreuz hoch Pingen / runter Tanzen · View Karte · Menü Pause
+// LB/RB Slot wechseln · L3 Sprinten · Steuerkreuz hoch Inventar (halten) / runter Tanzen / links Pingen · View Karte · Menü Pause
 const PAD = { 0: 'jump', 1: 'crouch', 2: 'padUse', 3: 'pickaxe', 4: 'prevSlot', 5: 'nextSlot', 6: 'aim', 7: 'fire',
-  8: 'map', 9: 'pause', 10: 'sprint', 11: 'crouch', 12: 'ping', 13: 'emote', 14: 'prevSlot', 15: 'nextSlot' };
+  8: 'map', 9: 'pause', 10: 'sprint', 11: 'crouch', 12: 'inventory', 13: 'emote', 14: 'ping', 15: 'nextSlot' };
 const padPrev = new Set(); let padSprint = false;
 export let padConnected = false;
 const dz = v => Math.abs(v) < 0.16 ? 0 : (v - Math.sign(v) * 0.16) / 0.84;
@@ -107,11 +108,11 @@ export function initInput(canvas, onLockChange) {
     // Mit Tastatursperre kommt Esc im Spiel an -> selbst Maus freigeben (Pause-Menü)
     if (e.code === 'Escape' && locked) { document.exitPointerLock(); return; }
     if (locked && (e.ctrlKey || e.metaKey)) e.preventDefault();
-    if (locked && (e.code === 'Tab' || e.code === 'Space' || e.ctrlKey || /^F\d+$/.test(e.code) || e.code === 'AltLeft')) e.preventDefault();
+    if (locked && (e.code === 'Tab' || e.code === 'Space' || e.ctrlKey || /^F\d+$/.test(e.code) || e.code === 'AltLeft' || e.code === 'AltRight')) e.preventDefault();
     if (!keys[e.code]) pressed.add(e.code);
     keys[e.code] = true;
   });
-  addEventListener('keyup', e => { keys[e.code] = false; });
+  addEventListener('keyup', e => { keys[e.code] = false; if ((e.code === 'AltLeft' || e.code === 'AltRight') && canvas.dataset.play === '1') e.preventDefault(); });
   addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
   addEventListener('mousedown', e => {
