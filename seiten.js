@@ -131,7 +131,14 @@ const SEITEN = [
     bild: "seiten/SkyCraft/preview.jpg",
     zeigeInfo: false
   },
-
+    {
+    id: "sky-royale",
+    kategorie: "games",
+    name: "Sky Royale",
+    ordner: "Sky-Royale",
+    bild: "",
+    zeigeInfo: false
+  },
   // ================= NÜTZLICHE WEBSEITEN =================
   {
     id: "detect-ai",
