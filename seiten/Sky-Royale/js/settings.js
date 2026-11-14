@@ -2,7 +2,7 @@
 import { G } from './state.js';
 import { ACTIONS, binds, setBind, resetBinds, keyName, captureNext, setFullscreenWanted } from './input.js';
 import { setVolume } from './audio.js';
-import { setMusicUrl, applyVolume, validUrl } from './music.js';
+import { setMusicUrl, applyVolume, validUrl, cleanUrl } from './music.js';
 
 const STORE = 'skyroyale.settings.v1';
 export const DEFAULTS = {
@@ -84,7 +84,7 @@ function render() {
     for (const [k, label] of SLOT_CATS) body += `<label class="opt"><span>${label}</span><select data-slot="${k}">${['Egal', 1, 2, 3, 4, 5].map((n, i) => `<option value="${i}" ${(p[k] || 0) === i ? 'selected' : ''}>${i ? 'Slot ' + n : n}</option>`).join('')}</select></label>`;
   } else {
     if (tab === 'music') body += `<p class="hint" style="margin-top:0">Füge den Link zu einem öffentlichen SoundCloud-Track oder einer Playlist ein (z. B. https://soundcloud.com/künstler/sets/playlist).
-      Gestreamt wird über den offiziellen SoundCloud-Player. Öffentliche Titel laufen ohne Konto; für private oder Go+-Titel meldest du dich im Player-Fenster unten links bei SoundCloud an. Nichts wird gespeichert oder heruntergeladen. Alle gehörten Titel stehen mit Künstler und Link unter „Credits“ im Hauptmenü.</p>
+      Gestreamt wird über den offiziellen SoundCloud-Player. Öffentliche Titel laufen ohne Konto. Wichtig: Ein Profil-Link spielt nur die eigenen Uploads dieses Profils – für deine Lieblingssongs leg in SoundCloud eine öffentliche Playlist an und nimm deren Link (…/sets/…). Nichts wird gespeichert oder heruntergeladen. Alle gehörten Titel stehen mit Künstler und Link unter „Credits“ im Hauptmenü.</p>
       <label class="opt"><span>SoundCloud-Link</span><input type="text" id="music-url" spellcheck="false" placeholder="https://soundcloud.com/…" value="${(s.musicUrl || '').replace(/"/g, '&quot;')}"><button id="music-set" class="small">Übernehmen</button></label>
       <p class="hint" id="music-status"></p>`;
     for (const [k, label, min, max, step] of SLIDERS[tab]) {
@@ -102,7 +102,8 @@ function render() {
   if (mb) mb.onclick = async () => {
     const u = root.querySelector('#music-url').value.trim(), st = root.querySelector('#music-status');
     if (u && !validUrl(u)) { st.textContent = 'Das ist kein SoundCloud-Link (muss mit https://soundcloud.com/ anfangen).'; return; }
-    s.musicUrl = u; save();
+    s.musicUrl = u ? cleanUrl(u) : ''; save();
+    root.querySelector('#music-url').value = s.musicUrl;
     st.textContent = u ? 'Player wird geladen …' : 'Musik entfernt.';
     if (await setMusicUrl(u) && u) st.textContent = 'Player bereit – unten links auf ▶ klicken oder im Spiel mit ' + keyName(binds.music[0]) + ' starten. ' + keyName(binds.musicNext[0]) + ': nächster Song.';
   };

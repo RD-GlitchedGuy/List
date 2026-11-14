@@ -8,6 +8,13 @@ let widget = null, frame = null, ready = false, playing = false, cur = null, wan
 let dock = null, peekUntil = 0, closed = false, playAsked = 0, readyWait = null;
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+// Link aufräumen: Tracking-Anhänge (?utm_…) weg, nur der eigentliche SoundCloud-Pfad bleibt
+export function cleanUrl(u) {
+  try { const x = new URL(u.trim()); if (!x.pathname.includes('/s-')) x.search = ''; x.hash = ''; return x.toString().replace(/\/$/, ''); } catch (e) { return u.trim(); }
+}
+// Profil-Link (soundcloud.com/name) statt Playlist (…/sets/…) oder Track?
+export const isProfile = u => { try { return new URL(u).pathname.split('/').filter(Boolean).length === 1; } catch (e) { return false; } };
+
 // Nur echte SoundCloud-Adressen annehmen
 export function validUrl(u) {
   try { const x = new URL(u.trim()); return /(^|\.)soundcloud\.com$/.test(x.hostname) && x.protocol === 'https:'; } catch (e) { return false; }
@@ -26,7 +33,7 @@ function loadApi() {
 // ---------- Pop-up unten links: der echte SoundCloud-Player (zeigt Titel, Künstler, Play-Knopf) ----------
 function buildDock() {
   dock = document.getElementById('music-dock');
-  dock.innerHTML = `<div class="md-head"><b>♪ Musik</b><a href="https://soundcloud.com/signin" target="_blank" rel="noopener" title="Optional – nötig nur für private oder Go+-Titel">Bei SoundCloud anmelden</a><button class="md-x" title="Ausblenden">✕</button></div>
+  dock.innerHTML = `<div class="md-head"><b>♪ Musik</b><a class="md-open" href="https://soundcloud.com" target="_blank" rel="noopener">Auf SoundCloud öffnen</a><button class="md-x" title="Ausblenden">✕</button></div>
     <div class="md-frame"></div><div class="md-msg"></div>`;
   dock.querySelector('.md-x').onclick = () => { closed = true; peekUntil = 0; show(); };
   document.getElementById('music-tab').onclick = () => { closed = false; show(); };
@@ -55,7 +62,7 @@ function show() {
 // Player (neu) laden, wenn sich der Link geändert hat. Rückgabe: true, sobald der Player wirklich bereit ist.
 export async function setMusicUrl(url) {
   if (!dock) buildDock();
-  url = (url || '').trim();
+  url = url ? cleanUrl(url) : '';
   if (url === loadedUrl && frame) return ready;
   stopMusic();
   if (frame) { frame.remove(); frame = null; widget = null; ready = false; }
@@ -78,8 +85,17 @@ export async function setMusicUrl(url) {
     widget.bind(E.READY, () => { clearTimeout(readyWait); res(true); });
   });
   if (!ok) { msg('Der Player lädt nicht. Ist der Link öffentlich und richtig?'); return false; }
+  // Gibt es unter dem Link überhaupt öffentliche Titel? (Profile ohne Uploads oder private Playlists sind leer)
+  let list = [];
+  for (let i = 0; i < 6 && !list.length; i++) { list = await new Promise(r => widget.getSounds(s => r(s || []))); if (!list.length) await new Promise(r => setTimeout(r, 500)); }
+  if (!list.length) {
+    msg(isProfile(url) ? 'Dieses Profil hat keine öffentlichen Tracks. Ein Profil-Link spielt nur eigene Uploads – nimm den Link einer öffentlichen Playlist (…/sets/…).'
+      : 'Unter diesem Link gibt es keine öffentlichen Titel. Ist die Playlist privat? Dann in SoundCloud auf öffentlich stellen.');
+    return false;
+  }
   ready = true; applyVolume();
-  widget.getSounds(list => (list || []).forEach(addCredit));       // ganze Playlist in die Credits
+  list.forEach(addCredit);                                           // ganze Playlist in die Credits
+  dock.querySelector('.md-open').href = url;
   widget.bind(E.PLAY, () => {
     playing = true; playAsked = 0; msg('');
     widget.getCurrentSound(s => { if (s) { if (!cur || cur.id !== s.id) peekMusic(6); cur = s; addCredit(s); } });
