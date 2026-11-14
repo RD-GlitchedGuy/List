@@ -59,6 +59,19 @@ function show() {
   }
 }
 
+// Player-Adresse über SoundCloud-oEmbed holen: nur so funktionieren auch private Playlists mit geheimem Link (/s-…)
+async function playerSrc(url) {
+  let src = 'https://w.soundcloud.com/player/?url=' + encodeURIComponent(url);
+  try {
+    const r = await fetch('https://soundcloud.com/oembed?format=json&url=' + encodeURIComponent(url));
+    if (r.ok) { const m = /src="([^"]+)"/.exec((await r.json()).html || ''); if (m) src = m[1].replace(/&amp;/g, '&'); }
+  } catch (e) {}
+  const u = new URL(src);
+  const opts = { visual: 'false', auto_play: 'false', hide_related: 'true', show_comments: 'false', show_user: 'true', show_reposts: 'false', show_teaser: 'false', show_artwork: 'true', color: '#e6c14d' };
+  for (const k in opts) u.searchParams.set(k, opts[k]);
+  return u.toString();
+}
+
 // Player (neu) laden, wenn sich der Link geändert hat. Rückgabe: true, sobald der Player wirklich bereit ist.
 export async function setMusicUrl(url) {
   if (!dock) buildDock();
@@ -74,8 +87,7 @@ export async function setMusicUrl(url) {
   frame.id = 'sc-frame'; frame.title = 'SoundCloud-Player';
   frame.setAttribute('allow', 'autoplay; encrypted-media');        // neuere SoundCloud-Streams sind verschlüsselt
   frame.setAttribute('scrolling', 'no'); frame.setAttribute('frameborder', 'no');
-  frame.src = 'https://w.soundcloud.com/player/?url=' + encodeURIComponent(url) +
-    '&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false&color=%23e6c14d';
+  frame.src = await playerSrc(url);
   dock.querySelector('.md-frame').appendChild(frame);
   closed = false; show();
   widget = window.SC.Widget(frame);
