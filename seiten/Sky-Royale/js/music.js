@@ -5,6 +5,16 @@ import { hit } from './input.js';
 
 const CREDITS = 'skyroyale.credits.v1';
 let widget = null, frame = null, ready = false, playing = false, cur = null, wantPlay = false, loadedUrl = '';
+// Zufällige Reihenfolge: gemischte Liste, jeder Song einmal, dann neu mischen
+let count = 0, order = [], started = false;
+function nextIndex() {
+  if (!order.length) {
+    order = [...Array(count).keys()];
+    for (let i = order.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [order[i], order[j]] = [order[j], order[i]]; }
+  }
+  return order.pop();
+}
+function playRandom() { if (!count) return; widget.skip(nextIndex()); widget.play(); started = true; playAsked = performance.now(); }
 let dock = null, peekUntil = 0, closed = false, playAsked = 0, readyWait = null;
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -121,23 +131,26 @@ export async function setMusicUrl(url) {
   }
   ready = true; applyVolume();
   list.forEach(addCredit);                                           // ganze Playlist in die Credits
+  count = list.length; order = []; started = false;
   dock.querySelector('.md-open').href = url;
   widget.bind(E.PLAY, () => {
     playing = true; playAsked = 0; msg('');
+    if (!started && count > 1) { started = true; widget.skip(nextIndex()); return; }   // auch beim Klick auf ▶ im Player: zufällig starten
+    started = true;
     widget.getCurrentSound(s => { if (s) { if (!cur || cur.id !== s.id) toast(s); cur = s; addCredit(s); } });
   });
   widget.bind(E.PAUSE, () => { playing = false; });
-  widget.bind(E.FINISH, () => { playing = false; });
+  widget.bind(E.FINISH, () => { playing = false; if (wantPlay) playRandom(); });   // nächster Song zufällig
   widget.bind(E.ERROR, () => msg('Dieser Titel lässt sich hier nicht abspielen (privat, Go+ oder vom Künstler gesperrt).'));
   if (wantPlay) playMusic();
   return true;
 }
 
 export function applyVolume() { if (widget && ready) widget.setVolume(Math.round((G.settings.musicVol ?? 0.5) * 100)); }
-export function playMusic() { wantPlay = true; if (widget && ready) { widget.play(); playAsked = performance.now(); } }
+export function playMusic() { wantPlay = true; if (widget && ready) { if (!started) playRandom(); else { widget.play(); playAsked = performance.now(); } } }
 export function stopMusic() { wantPlay = false; playAsked = 0; if (widget && ready) widget.pause(); }
 export function toggleMusic() { if (!widget) return; if (playing) { stopMusic(); if (cur) toast(cur, 'Pausiert'); } else { playMusic(); if (cur) toast(cur); } }
-export function nextTrack() { if (widget && ready) { widget.next(); wantPlay = true; widget.play(); } }
+export function nextTrack() { if (widget && ready) { wantPlay = true; playRandom(); } }
 
 // Rundenstart: automatisch spielen, wenn eingestellt
 export function musicRoundStart() { if (G.settings.musicAuto && widget && !playing) playMusic(); }
