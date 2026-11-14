@@ -6,6 +6,7 @@ import { makeCharacter, setHeldModel } from './models.js';
 import { spawnLoot } from './loot.js';
 import { sfx } from './audio.js';
 import { isClient, net, req } from './net.js';
+import { clearSeat } from './cars.js';
 
 let nextId = 1;
 export function createActor(name, isBot, look, id) {
@@ -84,7 +85,7 @@ export const mateOf = a => G.mode === 'duo' ? G.actors.find(o => o !== a && team
 export function removeActor(a) {
   G.scene.remove(a.model);
   const i = G.actors.indexOf(a); if (i >= 0) G.actors.splice(i, 1);
-  if (a.car) { if (a.car.driver === a) a.car.driver = null; a.car = null; }
+  if (a.car) clearSeat(a);
   a.alive = false; a.removed = true;
 }
 // Platzierung: im Duo zählt das Team, erst wenn beide raus sind
@@ -102,7 +103,7 @@ export function eliminate(t, killer, cause) {
     if (killer.isBot && Math.random() < 0.35) { killer.emoteT = 3; killer.emoteStyle = (Math.random() * 2) | 0; }
   }
   emit('elimFx', t.pos.clone());
-  if (t.car) { t.car.driver = null; t.car = null; }
+  if (t.car) clearSeat(t);
   emit('feed', feedText(t, killer, cause), t === G.player || killer === G.player);
   const warm = G.phase === 'warmup' || t.wait;
   if (!warm) {

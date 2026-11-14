@@ -79,11 +79,20 @@ export function takeItem(a, it) {
       }
     }
   }
-  for (let s = 1; s <= 5; s++) if (!a.inv[s]) {
-    a.inv[s] = it;
-    if (a.slot === 0 || !a.inv[a.slot]) { a.slot = s; a.equipT = 0.22; setHeldModel(a); }
-    return null;
+  // Bevorzugte Slots (Einstellungen, nur der eigene Spieler)
+  const prefs = a === G.player ? G.settings.prefSlots || {} : {};
+  const prefOf = x => prefs[itemCategory(x.key)] || 0;
+  const equip = s => { if (a.slot === 0 || !a.inv[a.slot]) { a.slot = s; a.equipT = 0.22; } if (a.slot === s) { a.reloadT = 0; a.channel = null; } setHeldModel(a); };
+  const want = prefOf(it);
+  const reserved = new Set(Object.values(prefs).filter(Boolean));
+  const free = [1, 2, 3, 4, 5].filter(s => !a.inv[s]).sort((x, y) => reserved.has(x) - reserved.has(y));
+  if (want) {
+    const cur = a.inv[want];
+    if (!cur) { a.inv[want] = it; equip(want); return null; }
+    const out = free.find(s => s !== want);
+    if (out && prefOf(cur) !== want) { a.inv[out] = cur; a.inv[want] = it; equip(want); return null; }   // altes Item weicht aus
   }
+  if (free.length) { a.inv[free[0]] = it; equip(free[0]); return null; }
   if (a.slot === 0) return false;
   const old = a.inv[a.slot];
   a.inv[a.slot] = it;
@@ -159,3 +168,11 @@ export function updateLoot(dt) {
 
 // Aufheben klingt je nach Gegenstand anders
 export const pickupSound = it => it.ammo ? 'ammo' : DEFS[it.key] && DEFS[it.key].type === 'gun' ? 'pickupgun' : 'pickup';
+
+// Kategorie eines Items für die bevorzugten Slots
+export function itemCategory(key) {
+  const d = DEFS[key]; if (!d) return '';
+  if (d.type === 'gun') return d.cls;
+  if (d.type === 'heal' || d.type === 'shield' || d.type === 'throw') return d.type;
+  return 'mobility';
+}

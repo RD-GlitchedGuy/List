@@ -14,15 +14,42 @@ export function placeCar(c) {
   eul.set(c.pitch, c.yaw, c.roll); c.root.quaternion.setFromEuler(eul);
   c.root.position.copy(c.pos);
 }
-export function initCars() { for (const c of G.cars) { c.pos.y = groundAt(c, c.pos.x, c.pos.z); placeCar(c); c.home = { pos: c.pos.clone(), yaw: c.yaw }; } }
+// Kompaktwagen haben vier Sitze, alle anderen zwei. Sitz 0 = Fahrer.
+export const seatCount = c => (c.name === 'Kompaktwagen' ? 4 : 2);
+export function initCars() {
+  for (const c of G.cars) {
+    c.pass = new Array(seatCount(c) - 1).fill(null);
+    c.pos.y = groundAt(c, c.pos.x, c.pos.z); placeCar(c); c.home = { pos: c.pos.clone(), yaw: c.yaw };
+  }
+}
+export function freeSeat(c) {
+  if (!c.driver) return 0;
+  const i = c.pass.findIndex(p => !p || !p.alive || p.car !== c);
+  return i >= 0 ? i + 1 : -1;
+}
+// Sitz belegen / freigeben (auch für Netz-Abgleich)
+export function setSeat(c, a, seat) {
+  if (seat === 0) c.driver = a; else c.pass[seat - 1] = a;
+  a.car = c; a.seat = seat;
+}
+export function clearSeat(a) {
+  const c = a.car; if (!c) return;
+  if (c.driver === a) c.driver = null;
+  const i = c.pass.indexOf(a); if (i >= 0) c.pass[i] = null;
+  a.car = null; a.seat = 0; a.lean = false;
+}
 export function resetCars() {
   for (const c of G.cars) {
     c.pos.copy(c.home.pos); c.yaw = c.home.yaw; c.pitch = c.roll = 0; c.speed = 0; c.vy = 0; c.steer = 0;
-    c.driver = null; c.netPos = null; placeCar(c);
+    c.driver = null; c.pass.fill(null); c.netPos = null; placeCar(c);
   }
 }
 
-function groundAt(c, x, z) { return groundBelow(q.set(x, c.pos.y + 2.5, z), 8); }
+// Boden unter einem Punkt: Strahl von oberhalb des Autos, damit es auch steile Hänge hinauf findet
+function groundAt(c, x, z) {
+  const g = groundBelow(q.set(x, c.pos.y + 3.2, z), 9);
+  return Number.isFinite(g) && g > -50 ? g : heightAt(x, z);
+}
 
 // input: { throttle -1..1, steer -1..1, brake }
 export function driveCar(c, dt, input) {
@@ -31,6 +58,7 @@ export function driveCar(c, dt, input) {
   else if (want > 0) c.speed += (c.speed < 0 ? ACC * 2 : ACC) * dt;
   else if (want < 0) c.speed -= (c.speed > 0 ? ACC * 2.2 : ACC * 0.7) * dt;
   else c.speed *= Math.exp(-dt * 0.6);
+  c.speed -= Math.sin(c.pitch) * 7 * dt;                 // bergauf langsamer, bergab schneller
   c.speed = THREE.MathUtils.clamp(c.speed, -REV, MAX);
   c.steer += (input.steer - c.steer) * Math.min(1, dt * 6);
   const grip = c.vy !== 0 ? 0.25 : 1;
@@ -45,12 +73,17 @@ export function stepCar(c, dt) {
     const dir = v1.copy(fw).multiplyScalar(Math.sign(dist));
     const side = v2.set(-fw.z, 0, fw.x);
     let blocked = false;
+    // Nur steile Flächen (Wände, Bäume, Felsen) halten das Auto auf – Hänge und kleine Kanten werden befahren
     for (const s of [-0.8, 0, 0.8]) {
-      const o = new THREE.Vector3(c.pos.x, c.pos.y + 0.75, c.pos.z).addScaledVector(side, s * c.half.x);
-      if (raycast(o, dir, c.half.z + Math.abs(dist) + 0.1)) { blocked = true; break; }
+      const o = new THREE.Vector3(c.pos.x, c.pos.y + 0.95, c.pos.z).addScaledVector(side, s * c.half.x);
+      const hit = raycast(o, dir, c.half.z + Math.abs(dist) + 0.1);
+      if (hit && (!hit.face || Math.abs(hit.face.normal.y) < 0.55)) { blocked = true; break; }
     }
     const nx = c.pos.x + fw.x * dist, nz = c.pos.z + fw.z * dist;
-    if (!blocked && heightAt(nx + fw.x * c.half.z * Math.sign(dist), nz + fw.z * c.half.z * Math.sign(dist)) < WATER_Y - 0.6) blocked = true;
+    const edge = Math.sign(dist) * c.half.z * 0.9;
+    const fx = nx + fw.x * edge, fz = nz + fw.z * edge;
+    if (!blocked && heightAt(fx, fz) < WATER_Y - 0.6) blocked = true;
+    if (!blocked && groundAt(c, fx, fz) - c.pos.y > 1.4) blocked = true;      // Klippe vor dem Auto
     if (blocked) {
       if (Math.abs(c.speed) > 8) sfx('carcrash', c.driver === G.player ? 0 : c.pos.distanceTo(G.camera.position), { vol: Math.min(1, Math.abs(c.speed) / 25) });
       c.speed = -c.speed * 0.25;
@@ -61,11 +94,14 @@ export function stepCar(c, dt) {
   const hf = groundAt(c, c.pos.x + fw.x * L, c.pos.z + fw.z * L), hb = groundAt(c, c.pos.x - fw.x * L, c.pos.z - fw.z * L);
   const hl = groundAt(c, c.pos.x + fw.z * W, c.pos.z - fw.x * W), hr = groundAt(c, c.pos.x - fw.z * W, c.pos.z + fw.x * W);
   const target = Math.max((hf + hb) / 2, (hl + hr) / 2);
-  if (c.pos.y > target + 0.25) { c.vy -= GRAVITY * dt; c.pos.y += c.vy * dt; if (c.pos.y < target) { c.pos.y = target; c.vy = 0; } }
-  else { c.pos.y += (target - c.pos.y) * Math.min(1, dt * 14); c.vy = 0; }
-  const tp = Math.atan2(hf - hb, L * 2), tr = Math.atan2(hl - hr, W * 2);
-  c.pitch += (THREE.MathUtils.clamp(tp, -0.6, 0.6) - c.pitch) * Math.min(1, dt * 8);
-  c.roll += (THREE.MathUtils.clamp(tr, -0.5, 0.5) - c.roll) * Math.min(1, dt * 8);
+  if (c.pos.y > target + 0.35) { c.vy -= GRAVITY * dt; c.pos.y += c.vy * dt; if (c.pos.y < target) { c.pos.y = target; c.vy = 0; } }
+  else { c.pos.y += (target - c.pos.y) * Math.min(1, dt * 18); if (c.pos.y < target - 0.05) c.pos.y = target - 0.05; c.vy = 0; }
+  // Neigung folgt dem Gelände (nur am Boden, in der Luft bleibt sie)
+  if (c.vy === 0) {
+    const tp = Math.atan2(hf - hb, L * 2), tr = Math.atan2(hl - hr, W * 2);
+    c.pitch += (THREE.MathUtils.clamp(tp, -0.75, 0.75) - c.pitch) * Math.min(1, dt * 10);
+    c.roll += (THREE.MathUtils.clamp(tr, -0.55, 0.55) - c.roll) * Math.min(1, dt * 10);
+  }
   placeCar(c);
 }
 
@@ -73,7 +109,7 @@ export function stepCar(c, dt) {
 export function pushFromCars(a) {
   for (const c of G.cars) {
     const dx = a.pos.x - c.pos.x, dz = a.pos.z - c.pos.z;
-    if (dx * dx + dz * dz > 40 || c.driver === a) continue;
+    if (dx * dx + dz * dz > 40 || a.car === c) continue;
     if (a.pos.y > c.pos.y + c.half.y + 0.1 || a.pos.y + a.height < c.pos.y - 0.2) continue;
     const s = Math.sin(c.yaw), co = Math.cos(c.yaw);
     // in lokale Koordinaten (x = rechts, z = hinten)
@@ -99,7 +135,7 @@ export function pushFromCars(a) {
 export function nearestCar(a, range = 3.6) {
   let best = null, bd = range;
   for (const c of G.cars) {
-    if (c.driver) continue;
+    if (freeSeat(c) < 0) continue;
     const d = Math.hypot(a.pos.x - c.pos.x, a.pos.z - c.pos.z) - Math.max(c.half.x, c.half.z) * 0.6;
     if (d < bd && Math.abs(a.pos.y - c.pos.y) < 2.5) {
       const from = new THREE.Vector3(a.pos.x, a.pos.y + 1.2, a.pos.z), to = new THREE.Vector3(c.pos.x, c.pos.y + 0.8, c.pos.z);
@@ -111,15 +147,17 @@ export function nearestCar(a, range = 3.6) {
   return best;
 }
 
-export function enterCar(a, c) {
-  c.driver = a; a.car = c; a.state = 'car'; a.vel.set(0, 0, 0);
+export function enterCar(a, c, seat = freeSeat(c)) {
+  if (seat < 0) return false;
+  setSeat(c, a, seat); a.state = 'car'; a.vel.set(0, 0, 0);
   a.crouch = false; a.slideT = 0; a.ads = false; a.channel = null; a.reloadT = 0;
   sfx('cardoor', a === G.player ? 0 : c.pos.distanceTo(G.camera.position));
+  return true;
 }
 
 export function exitCar(a) {
   const c = a.car; if (!c) return;
-  c.driver = null; a.car = null;
+  clearSeat(a);
   sfx('cardoor', a === G.player ? 0 : c.pos.distanceTo(G.camera.position));
   const side = new THREE.Vector3(Math.cos(c.yaw), 0, -Math.sin(c.yaw));
   for (const s of [-1, 1]) {
@@ -132,18 +170,22 @@ export function exitCar(a) {
   a.state = 'air'; a.onGround = false;
 }
 
-// Sitzposition des Fahrers (Figur sichtbar im Auto)
+// Sitzpositionen (x = rechts, z = hinten, in halben Autobreiten/-längen). Beim Rauslehnen sitzt man auf der Fensterkante.
+const SEATS = [[-0.35, 0.05], [0.35, 0.05], [-0.35, 0.45], [0.35, 0.45]];
 export function seatActor(a) {
-  const c = a.car;
-  const off = new THREE.Vector3(-c.half.x * 0.35, 0.05, c.half.z * 0.05).applyQuaternion(c.root.quaternion);
+  const c = a.car, s = SEATS[a.seat || 0];
+  const out = a.lean ? Math.sign(s[0]) * 0.55 : 0;
+  const off = new THREE.Vector3(c.half.x * (s[0] + out), a.lean ? 0.42 : 0.05, c.half.z * s[1]).applyQuaternion(c.root.quaternion);
   a.pos.copy(c.pos).add(off);
-  a.yaw = c.yaw; a.vel.set(-Math.sin(c.yaw) * c.speed, 0, -Math.cos(c.yaw) * c.speed);
+  if (!a.seat) a.yaw = c.yaw;
+  a.vel.set(-Math.sin(c.yaw) * c.speed, 0, -Math.cos(c.yaw) * c.speed);
 }
 
 // Schüsse treffen Autos (einfacher Quader-Test), liefert Abstand oder -1
-export function rayCars(from, dir, len) {
+export function rayCars(from, dir, len, skip) {
   let best = -1;
   for (const c of G.cars) {
+    if (c === skip) continue;
     const dx = from.x - c.pos.x, dz = from.z - c.pos.z;
     if (dx * dx + dz * dz > (len + 6) * (len + 6)) continue;
     const s = Math.sin(c.yaw), co = Math.cos(c.yaw);

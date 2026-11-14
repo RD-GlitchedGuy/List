@@ -100,7 +100,7 @@ export function updateHud(dt) {
   // Fadenkreuz
   const it = a.inv[a.slot], d = it ? DEFS[it.key] : null;
   let crossType = 'dot';
-  if (!a.alive || ['bus', 'skydive', 'glide', 'launch', 'car'].includes(a.state) || camState.scoped || a.sprint) crossType = 'none';
+  if (!a.alive || ['bus', 'skydive', 'glide', 'launch'].includes(a.state) || (a.state === 'car' && !a.lean) || camState.scoped || a.sprint) crossType = 'none';
   else if (d && d.cross === 'square') crossType = 'square';
   el.cross.className = crossType;
   if (crossType === 'square') {
@@ -139,9 +139,9 @@ export function updateHud(dt) {
   // Interaktion
   const o = camState.interact;
   let prompt = null, col = '#888';
-  if (a.alive && a.state === 'car') prompt = '<kbd>E</kbd>Aussteigen &nbsp; <kbd>Leertaste</kbd>Handbremse';
+  if (a.alive && a.state === 'car') prompt = a.seat > 0 ? `<kbd>${bindLabel('interact')}</kbd>Aussteigen &nbsp; <kbd>${bindLabel('aim')}</kbd>Aus dem Fenster lehnen` : '<kbd>E</kbd>Aussteigen &nbsp; <kbd>Leertaste</kbd>Handbremse';
   else if (a.alive && o) { prompt = `<kbd>E</kbd>${interactLabel(o)}`; if (o.item && !o.item.ammo) col = RARITIES[o.item.rarity || 0].color; }
-  else if (a.alive && camState.car) prompt = `<kbd>E</kbd>Einsteigen · ${camState.car.name}`;
+  else if (a.alive && camState.car) prompt = `<kbd>E</kbd>${camState.car.driver ? 'Mitfahren' : 'Einsteigen'} · ${camState.car.name}`;
   if (prompt) { el.prompt.style.display = 'block'; el.prompt.innerHTML = prompt; el.prompt.style.borderLeftColor = col; }
   else el.prompt.style.display = 'none';
   if (a.state === 'car' && a.car) { el.speedo.style.display = 'block'; el.speedo.textContent = Math.round(Math.abs(a.car.speed) * 3.6) + ' km/h'; }
@@ -169,7 +169,8 @@ export function updateHud(dt) {
     if (!s) { node.style.display = 'none'; return; }
     node.style.display = 'block';
     node.style.left = Math.max(20, Math.min(innerWidth - 20, s[0])) + 'px'; node.style.top = Math.max(30, Math.min(innerHeight - 10, s[1])) + 'px';
-    node.querySelector('span').textContent = Math.round(p.pos.distanceTo(a.pos)) + ' m';
+    node.classList.toggle('mate', !!p.mate);
+    node.querySelector('span').textContent = (p.mate ? p.name + ' · ' : '') + Math.round(p.pos.distanceTo(a.pos)) + ' m';
   });
 
   drawMinimap();
@@ -265,7 +266,7 @@ function drawMap(ctx, size, cx, cz, span, big) {
     const t = poi.name.toUpperCase(); ctx.strokeText(t, x, y); ctx.fillText(t, x, y);
   }
   for (const p of G.pings) {
-    ctx.fillStyle = '#f2c230'; ctx.save(); ctx.translate(X(p.pos.x), Z(p.pos.z)); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
+    ctx.fillStyle = p.mate ? '#4aa3ff' : '#f2c230'; ctx.save(); ctx.translate(X(p.pos.x), Z(p.pos.z)); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
   }
   const mt = G.mode === 'duo' && G.phase !== 'warmup' ? mateOf(G.player) : null;
   if (mt && mt.alive && mt.state !== 'bus') {

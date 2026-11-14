@@ -165,7 +165,7 @@ export function updateProjectiles(dt) {
     p.pos.add(step); p.travel += len; p.life -= dt;
     nd.copy(step).divideScalar(len);
     let wall = raycast(p.prev, nd, len);
-    const carT = rayCars(p.prev, nd, len);
+    const carT = rayCars(p.prev, nd, len, p.owner && p.owner.car);
     if (carT >= 0 && (!wall || carT < wall.distance)) wall = { distance: carT, point: p.prev.clone().addScaledVector(nd, carT) };
     const wallS = wall ? wall.distance / len : 2;
     const hit = hitActors(p.prev, p.pos, p.owner);

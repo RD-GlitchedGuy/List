@@ -242,8 +242,9 @@ export function animateCharacter(a, dt) {
     armsFree = false;
   } else if (st === 'car') {
     P.pelvisY = 0.55; P.hipLX = P.hipRX = 1.45; P.kneeLX = P.kneeRX = -1.35; P.hipLZ = -0.08; P.hipRZ = 0.08;
-    P.shLX = P.shRX = 0.95; P.elLX = P.elRX = 0.55; P.shLZ = 0.15; P.shRZ = -0.15;
-    armsFree = false;
+    if (a.lean) { P.pelvisY = 0.62; P.spineX = -0.1; }                       // aus dem Fenster gelehnt: Arme frei zum Zielen
+    else if (a.seat > 0) { P.shLX = P.shRX = 0.35; P.elLX = P.elRX = 0.9; P.shLZ = -0.1; P.shRZ = 0.1; armsFree = false; }
+    else { P.shLX = P.shRX = 0.95; P.elLX = P.elRX = 0.55; P.shLZ = 0.15; P.shRZ = -0.15; armsFree = false; }
   } else if (a.slideT > 0) {
     P.pelvisY = 0.42; P.pelvisX = 0.4; P.spineX = 0.05; P.headX = -0.35;
     P.hipLX = 1.2; P.kneeLX = -0.1; P.hipRX = 0.35; P.kneeRX = -1.45; P.hipRZ = 0.1;

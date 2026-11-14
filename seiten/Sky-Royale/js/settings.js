@@ -8,8 +8,11 @@ export const DEFAULTS = {
   sens: 1, adsSens: 0.75, padSens: 1, touchSens: 1, invertY: false, touch: matchMedia('(pointer: coarse)').matches,
   fov: 80, quality: matchMedia('(pointer: coarse)').matches ? 0.7 : 1, shadows: true, viewDist: 760, clouds: true,
   volume: 0.6, fullscreen: true, showFps: false, minimapZoom: 1, damageNumbers: true, autoSprint: false,
+  prefSlots: {},                      // bevorzugte Slots je Item-Kategorie (0 = egal)
 };
-Object.assign(G.settings, DEFAULTS);
+export const SLOT_CATS = [['ar', 'Sturmgewehre'], ['shotgun', 'Shotguns'], ['smg', 'Maschinenpistolen'], ['pistol', 'Pistolen'], ['sniper', 'Scharfschützengewehre'],
+  ['rocket', 'Raketenwerfer'], ['heal', 'Heilung (Verband, Medikit)'], ['shield', 'Schildtränke'], ['throw', 'Granaten'], ['mobility', 'Mobilität (Startrampe, Enterhaken, Riss)']];
+Object.assign(G.settings, DEFAULTS, { prefSlots: {} });
 try { Object.assign(G.settings, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify(G.settings)); } catch (e) {} };
 
@@ -31,7 +34,7 @@ export function applySettings() {
 }
 
 // ---------- Oberfläche ----------
-const TABS = [['keys', 'Tastenbelegung'], ['mouse', 'Maus, Controller & Touch'], ['gfx', 'Grafik'], ['other', 'Audio & HUD']];
+const TABS = [['keys', 'Tastenbelegung'], ['slots', 'Bevorzugte Slots'], ['mouse', 'Maus, Controller & Touch'], ['gfx', 'Grafik'], ['other', 'Audio & HUD']];
 const SLIDERS = {
   mouse: [['sens', 'Mausempfindlichkeit', 0.1, 3, 0.05], ['adsSens', 'Empfindlichkeit beim Zielen', 0.2, 1.5, 0.05], ['padSens', 'Controller-Empfindlichkeit', 0.3, 2.5, 0.05], ['touchSens', 'Touch-Empfindlichkeit', 0.3, 2.5, 0.05]],
   gfx: [['fov', 'Sichtfeld (FOV)', 65, 105, 1], ['quality', 'Auflösung (Render-Skalierung)', 0.5, 1.25, 0.05], ['viewDist', 'Sichtweite', 350, 1200, 10]],
@@ -43,11 +46,13 @@ const TOGGLES = {
   other: [['damageNumbers', 'Schadenszahlen'], ['autoSprint', 'Automatisch laufen = sprinten']],
 };
 let tab = 'keys', root, onClose;
+try { tab = localStorage.getItem('skyroyale.settab') || 'keys'; } catch (e) {}
 
 export function openSettings(cb) {
   onClose = cb;
   root = document.getElementById('settings');
   root.classList.remove('hidden');
+  if (!TABS.some(t => t[0] === tab)) tab = 'keys';
   render();
 }
 function close() { root.classList.add('hidden'); captureNext(null); if (onClose) onClose(); }
@@ -68,6 +73,10 @@ function render() {
         ['A / ✕', 'Springen · Abspringen · Gleiter'], ['B / ○', 'Ducken · beim Sprinten Rutschen'], ['X / □', 'Benutzen · Nachladen · Einsteigen'], ['Y / △', 'Spitzhacke'],
         ['LB / RB', 'Slot wechseln'], ['Steuerkreuz ↑', 'Inventar an / aus'], ['Steuerkreuz ↓ / ←', 'Tanzen / Pingen'], ['View / Share', 'Karte'], ['Menü / Options', 'Pause']]
         .map(([k, v]) => `<tr><td style="width:180px"><b>${k}</b></td><td>${v}</td></tr>`).join('')}</table>`;
+  } else if (tab === 'slots') {
+    const p = s.prefSlots || (s.prefSlots = {});
+    body += '<p class="hint" style="margin-top:0">Aufgehobene Items landen automatisch in ihrem Slot. Liegt dort schon etwas anderes, rutscht es in einen freien Slot. Andere Items nehmen bevorzugte Slots nur, wenn nichts anderes frei ist.</p>';
+    for (const [k, label] of SLOT_CATS) body += `<label class="opt"><span>${label}</span><select data-slot="${k}">${['Egal', 1, 2, 3, 4, 5].map((n, i) => `<option value="${i}" ${(p[k] || 0) === i ? 'selected' : ''}>${i ? 'Slot ' + n : n}</option>`).join('')}</select></label>`;
   } else {
     for (const [k, label, min, max, step] of SLIDERS[tab]) {
       const v = s[k];
@@ -79,10 +88,12 @@ function render() {
     <div class="tabs">${TABS.map(([id, n]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${n}</button>`).join('')}</div>
     <div class="body">${body}</div>
     <div class="row"><button class="ghost" id="set-reset">Standard wiederherstellen</button><button id="set-close">Fertig</button></div></div>`;
-  root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+  root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; try { localStorage.setItem('skyroyale.settab', tab); } catch (e) {} render(); });
+  root.querySelectorAll('select[data-slot]').forEach(c => c.onchange = () => { s.prefSlots[c.dataset.slot] = +c.value; save(); });
   root.querySelector('#set-close').onclick = close;
   root.querySelector('#set-reset').onclick = () => {
     if (tab === 'keys') resetBinds();
+    else if (tab === 'slots') { s.prefSlots = {}; save(); }
     else { for (const [k] of [...(SLIDERS[tab] || []), ...(TOGGLES[tab] || [])]) s[k] = DEFAULTS[k]; save(); applySettings(); }
     render();
   };

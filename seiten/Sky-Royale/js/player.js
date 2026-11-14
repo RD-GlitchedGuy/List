@@ -9,7 +9,7 @@ import { trigger, startReload, current } from './combat.js';
 import { exitBus, thankDriver } from './bus.js';
 import { findInteract, interact } from './loot.js';
 import { nearestCar, driveCar, seatActor } from './cars.js';
-import { requestCar, leaveCar } from './net.js';
+import { requestCar, leaveCar, placePing } from './net.js';
 import { raycast } from './physics.js';
 import { sfx } from './audio.js';
 
@@ -55,6 +55,22 @@ export function updatePlayer(dt) {
   }
 
   // ---- Auto fahren ----
+  if (a.state === 'car' && a.car && a.seat > 0) {
+    // Beifahrer: frei umsehen, mit der Zieltaste aus dem Fenster lehnen und schießen
+    const it = current(a), gun = it && DEFS[it.key].type === 'gun';
+    a.lean = !G.invOpen && down('aim') && gun;
+    a.ads = a.lean && a.reloadT <= 0;
+    a.adsT = THREE.MathUtils.clamp(a.adsT + (a.ads ? dt : -dt) * 5, 0, 1);
+    seatActor(a);
+    for (let i = 1; i <= 5; i++) if (hit('slot' + i)) switchSlot(a, i);
+    if (hit('nextSlot')) cycleSlot(a, 1);
+    if (hit('prevSlot')) cycleSlot(a, -1);
+    if (hit('reload')) startReload(a);
+    if (a.lean && a.adsT > 0.5 && !G.invOpen && (down('fire') || hit('fire'))) { const [o, d] = a.aimRay(); trigger(a, o, d, hit('fire')); }
+    if (hit('ping') && !G.invOpen) { const h = raycast(G.camera.position, camState.dir, 900); if (h) { placePing(a, h.point.clone()); sfx('ping'); } }
+    if (hit('interact') || hit('padUse')) leaveCar(a);
+    return;
+  }
   if (a.state === 'car' && a.car) {
     const c = a.car;
     driveCar(c, dt, {
@@ -131,7 +147,7 @@ export function updatePlayer(dt) {
   // Pingen mit mittlerer Maustaste
   if (hit('ping') && !G.invOpen) {
     const hit = raycast(G.camera.position, camState.dir, 900);
-    if (hit) { G.pings = [{ pos: hit.point.clone(), t: G.time }]; sfx('ping'); }
+    if (hit) { placePing(a, hit.point.clone()); sfx('ping'); }
   }
 }
 
@@ -195,6 +211,12 @@ export function updateCamera(dt) {
   view.camY += (targetY - view.camY) * Math.min(1, dt * 10);
   if (a.state === 'bus') {
     pivot.copy(G.bus.pos).add(tmp.set(0, 3, 0)); back = 22; side = 0; up = 3;
+  } else if (a.state === 'car' && a.car && a.lean) {
+    // aus dem Fenster gelehnt: Schulterkamera wie beim Zielen zu Fuß
+    pivot.copy(a.pos).add(tmp.set(0, 1.3, 0));
+    const k = a.adsT;
+    back = THREE.MathUtils.lerp(3.2, d && d.scope ? 0 : 2.2, k); side = THREE.MathUtils.lerp(0.7, d && d.scope ? 0 : 0.8, k); up = 0.15;
+    if (d && d.type === 'gun') fov = THREE.MathUtils.lerp(G.baseFov, d.adsFov, k);
   } else if (a.state === 'car' && a.car) {
     pivot.copy(a.car.pos).add(tmp.set(0, 1.6, 0)); back = 8; side = 0; up = 1.4;
     fov = G.baseFov + Math.min(12, Math.abs(a.car.speed) * 0.4);
@@ -212,7 +234,7 @@ export function updateCamera(dt) {
       fov = THREE.MathUtils.lerp(G.baseFov, d.adsFov, k);
     }
   }
-  camState.scoped = !!(d && d.scope && a.adsT > 0.9 && a.alive && a.state !== 'car');
+  camState.scoped = !!(d && d.scope && a.adsT > 0.9 && a.alive && (a.state !== 'car' || a.lean));
   want.copy(pivot).addScaledVector(dir, -back).addScaledVector(right, side).add(tmp.set(0, up, 0));
   const off = tmp.subVectors(want, pivot); const len = off.length();
   if (len > 0.05 && a.state !== 'bus') {

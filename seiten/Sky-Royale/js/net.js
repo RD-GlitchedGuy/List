@@ -8,7 +8,8 @@ import { setHeldModel } from './models.js';
 import { remoteShots, visualShots, remoteMelee, remoteThrow, visualThrow, addPad, breakObject } from './combat.js';
 import { wobbleObject, destroyObject } from './world.js';
 import { startBusWith, thankDriver as thankDriverRemote } from './bus.js';
-import { enterCar, exitCar, placeCar } from './cars.js';
+import { enterCar, exitCar, placeCar, freeSeat, setSeat, clearSeat } from './cars.js';
+import { mateOf } from './actors.js';
 import { createItem } from './items.js';
 import { explosion, shockRing } from './effects.js';
 import { sfx } from './audio.js';
@@ -154,6 +155,7 @@ function hostHandle(entry, d) {
   const a = entry.actor; if (!a) return;
   switch (d.t) {
     case 'requeue': emit('requeue', a); break;
+    case 'mark': forwardPing(a, V(d.p)); break;
     case 'thank': if (a.state === 'bus') { a.thanked = false; thankDriverRemote(a); } break;
     case 'st': {
       if (!a.alive) return;
@@ -163,7 +165,7 @@ function hostHandle(entry, d) {
       const ns = d.s;
       if (a.state === 'bus' && ns === 'bus') return;
       if (a.state === 'bus' && ns !== 'bus') { a.pos.copy(a.netPos); a.model.visible = true; }
-      a.state = ns; a.crouch = !!d.c; a.slideT = d.sl ? 1 : 0; a.diving = !!d.dv; a.emoteT = d.em ? 1 : 0; a.emoteStyle = d.em ? d.em - 1 : 0;
+      a.state = ns; a.crouch = !!d.c; a.slideT = d.sl ? 1 : 0; a.diving = !!d.dv; a.emoteT = d.em ? 1 : 0; a.emoteStyle = d.em ? d.em - 1 : 0; a.lean = !!d.ln;
       setHeld(a, d.h);
       if (d.car) {
         const car = G.cars[d.car.id];
@@ -189,8 +191,9 @@ function hostHandle(entry, d) {
     case 'selfdmg': damage(a, d.a, null, { ignoreShield: true, cause: d.c }); break;
     case 'car': {
       const car = G.cars[d.id]; if (!car) return;
-      if (d.on && !car.driver && a.alive) { enterCar(a, car); entry.conn.send({ t: 'carOk', id: d.id }); }
-      else if (!d.on && car.driver === a) { car.driver = null; a.car = null; }
+      const seat = freeSeat(car);
+      if (d.on && seat >= 0 && a.alive && !a.car) { enterCar(a, car, seat); entry.conn.send({ t: 'carOk', id: d.id, seat }); }
+      else if (!d.on && a.car === car) clearSeat(a);
       break;
     }
   }
@@ -238,6 +241,24 @@ export const req = {
   requeue() { toHost({ t: 'requeue' }); },
 };
 
+// Pings: eigene immer sichtbar, im Duo auch beim Teamkameraden
+export function setPing(a, pos) {
+  G.pings = G.pings.filter(p => p.owner !== a.id);
+  G.pings.push({ pos, t: G.time, owner: a.id, mate: a !== G.player, name: a.name });
+  if (!isClient()) (G.marks || (G.marks = {}))[a.id] = { pos, t: G.time };     // für Bot-Teamkameraden
+}
+export function placePing(a, pos) {
+  setPing(a, pos);
+  if (G.mode !== 'duo') return;
+  if (isClient()) toHost({ t: 'mark', p: v3(pos) }); else forwardPing(a, pos);
+}
+function forwardPing(a, pos) {
+  if (a !== G.player) G.marks = Object.assign(G.marks || {}, { [a.id]: { pos, t: G.time } });
+  const m = mateOf(a); if (!m) return;
+  if (m === G.player) { setPing(a, pos); sfx('ping', 0, { vol: 0.7, rate: 0.9 }); }
+  else if (m.isRemote) toActor(m, { t: 'mark', id: a.id, p: v3(pos) });
+}
+
 // Auto ein-/aussteigen (lokal oder per Anfrage)
 export function requestCar(a, car) {
   if (isClient()) toHost({ t: 'car', id: car.id, on: true });
@@ -277,6 +298,7 @@ function clientHandle(d, onChange) {
     case 'actor+': { if (byId(d.a.id)) break; const a = makePuppet(d.a); a.alive = !!d.a.al; a.model.visible = a.alive; break; }
     case 'actor-': { const a = byId(d.id); if (a && a !== G.player) { removeActor(a); if (G.spectate === a) G.spectate = null; } break; }
     case 'feed': emit('feed', d.txt, !!d.me); break;
+    case 'mark': { const o = byId(d.id); if (o) { setPing(o, V(d.p)); sfx('ping', 0, { vol: 0.7, rate: 0.9 }); } break; }
     case 'wheel': if (G.bus) { G.bus.driver = G.player; emit('wheel'); } break;
     case 'start': emit('netStart', d); break;
     case 'snap': applySnap(d); break;
@@ -298,7 +320,7 @@ function clientHandle(d, onChange) {
     case 'elim': {
       const t = byId(d.v), k = d.k ? byId(d.k) : null; if (!t) return;
       emit('elimFx', t.pos.clone()); t.alive = false; t.state = 'dead'; t.model.visible = false; setPlace(t, d.pl); t.netPos = null; t.hp = 0; t.shield = 0;
-      if (t.car) { if (t.car.driver === t) t.car.driver = null; t.car = null; }
+      if (t.car) clearSeat(t);
       emit('feed', feedText(t, k, d.c), t === G.player || k === G.player);
       if (k === G.player) { sfx('elim'); emit('kill', t, (k.kills || 0) + 1); }
       if (G.phase !== 'warmup' && !d.w) emit('eliminated', t, k);
@@ -313,7 +335,7 @@ function clientHandle(d, onChange) {
     }
     case 'respawn': emit('respawnLocal', V(d.p), d.y); break;
     case 'bus': startBusWith(V(d.s), V(d.e), V(d.d)); emit('clientBus'); break;
-    case 'carOk': { const car = G.cars[d.id]; if (car) enterCar(G.player, car); break; }
+    case 'carOk': { const car = G.cars[d.id]; if (car && !G.player.car) enterCar(G.player, car, d.seat || 0); break; }
     case 'end': emit('netEnd', d.w); break;
     case 'obj': { const o = G.objects[d.id]; if (!o) break; o.hp = d.hp; if (d.gone && o.alive) breakObject(o); else if (!d.gone) wobbleObject(o); break; }
     case 'objHit': { const o = G.objects[d.id]; if (o) emit('objHit', o); break; }
@@ -340,11 +362,11 @@ function applySnap(d) {
     if (!a.alive) { a.alive = true; a.pos.set(r[1], r[2], r[3]); }
     a.netPos = new THREE.Vector3(r[1], r[2], r[3]); a.netYaw = r[4]; a.netPitch = r[5];
     a.state = STATES[r[6]] || 'ground'; a.hp = r[7]; a.shield = r[8];
-    a.crouch = !!(r[11] & 1); a.slideT = r[11] & 2 ? 1 : 0; a.diving = !!(r[11] & 4); a.emoteT = r[11] & 8 ? 1 : 0; a.emoteStyle = r[11] & 16 ? 1 : 0;
+    a.crouch = !!(r[11] & 1); a.slideT = r[11] & 2 ? 1 : 0; a.diving = !!(r[11] & 4); a.emoteT = r[11] & 8 ? 1 : 0; a.emoteStyle = r[11] & 16 ? 1 : 0; a.lean = !!(r[11] & 32);
     setHeld(a, r[12] ? [r[12], r[13]] : null);
     a.vel.set(r[14], 0, r[15]);
     const car = r[16] >= 0 ? G.cars[r[16]] : null;
-    if (car) { a.car = car; car.driver = a; } else if (a.car) { if (a.car.driver === a) a.car.driver = null; a.car = null; }
+    if (car) { if (a.car && a.car !== car) clearSeat(a); setSeat(car, a, r[19] || 0); } else if (a.car) clearSeat(a);
   }
   if (d.st) {
     const s = G.storm, q = d.st;
@@ -356,7 +378,7 @@ function applySnap(d) {
     const car = G.cars[q[0]]; if (!car || car.driver === G.player) continue;
     car.netPos = new THREE.Vector3(q[1], q[2], q[3]); car.netYaw = q[4]; car.pitch = q[5]; car.roll = q[6]; car.speed = q[7];
     const drv = q[8] ? byId(q[8]) : null;
-    if (!drv && car.driver && car.driver !== G.player) { if (car.driver.car === car) car.driver.car = null; car.driver = null; }
+    if (!drv && car.driver && car.driver !== G.player) { if (car.driver.car === car) clearSeat(car.driver); else car.driver = null; }
   }
 }
 
@@ -407,7 +429,7 @@ export function netUpdate(dt) {
       NET.sendT = 1 / 20;
       const a = G.player, it = a.inv[a.slot];
       toHost({
-        t: 'st', p: v3(a.pos), v: v3(a.vel), y: r2(a.yaw), pi: r2(a.pitch), s: a.state, c: a.crouch ? 1 : 0, sl: a.slideT > 0 ? 1 : 0, dv: a.diving ? 1 : 0, em: a.emoteT > 0 ? (a.emoteStyle || 0) % 2 + 1 : 0,
+        t: 'st', p: v3(a.pos), v: v3(a.vel), y: r2(a.yaw), pi: r2(a.pitch), s: a.state, c: a.crouch ? 1 : 0, sl: a.slideT > 0 ? 1 : 0, dv: a.diving ? 1 : 0, em: a.emoteT > 0 ? (a.emoteStyle || 0) % 2 + 1 : 0, ln: a.lean ? 1 : 0,
         h: it ? [it.key, it.rarity || 0] : null, bs: G.bus && G.bus.driver === a ? r2(G.bus.steer) : undefined,
         car: a.car ? { id: a.car.id, p: v3(a.car.pos), y: r2(a.car.yaw), pi: r2(a.car.pitch), ro: r2(a.car.roll), sp: r2(a.car.speed) } : null,
       });
@@ -419,8 +441,8 @@ function makeSnap() {
   const a = G.actors.map(x => {
     const it = x.inv[x.slot];
     return [x.id, r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.pitch), Math.max(0, STATES.indexOf(x.state)), Math.round(x.hp), Math.round(x.shield),
-      x.alive ? 1 : 0, x.kills, (x.crouch ? 1 : 0) | (x.slideT > 0 ? 2 : 0) | (x.diving ? 4 : 0) | (x.emoteT > 0 ? 8 + ((x.emoteStyle || 0) % 2) * 16 : 0), it ? it.key : '', it ? it.rarity || 0 : 0,
-      r2(x.vel.x), r2(x.vel.z), x.car ? x.car.id : -1, x.team ?? -1, x.wait ? 1 : 0];
+      x.alive ? 1 : 0, x.kills, (x.crouch ? 1 : 0) | (x.slideT > 0 ? 2 : 0) | (x.diving ? 4 : 0) | (x.emoteT > 0 ? 8 + ((x.emoteStyle || 0) % 2) * 16 : 0) | (x.lean ? 32 : 0), it ? it.key : '', it ? it.rarity || 0 : 0,
+      r2(x.vel.x), r2(x.vel.z), x.car ? x.car.id : -1, x.team ?? -1, x.wait ? 1 : 0, x.seat || 0];
   });
   const s = G.storm;
   const st = s ? [s.active ? 1 : 0, r2(s.cx), r2(s.cz), r2(s.r), r2(s.nx), r2(s.nz), r2(s.nr), s.phase, s.shrinking ? 1 : 0, r2(s.t)] : null;

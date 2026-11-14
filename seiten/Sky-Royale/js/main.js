@@ -20,7 +20,7 @@ import { spawnLoot, updateLoot, removeLoot } from './loot.js';
 import { rollFloor } from './items.js';
 import { startBus, updateBus } from './bus.js';
 import { createStorm, startStorm, updateStorm, resetStorm } from './storm.js';
-import { initCars, stepCar, resetCars } from './cars.js';
+import { initCars, stepCar, resetCars, clearSeat } from './cars.js';
 import { updateEffects } from './effects.js';
 import { initHud, updateHud, message, banner } from './hud.js';
 import { initInventory, updateInventory } from './inv.js';
@@ -281,7 +281,7 @@ function resetRound() {
   resetCars(); resetStorm();
   if (G.bus && G.bus.model) G.scene.remove(G.bus.model);
   G.bus = null;
-  Object.assign(G, { pings: [], spectate: null, winner: null, victory: null, ended: false, timeScale: 1, matchStart: 0, paused: false, invOpen: false });
+  Object.assign(G, { pings: [], marks: {}, spectate: null, winner: null, victory: null, ended: false, timeScale: 1, matchStart: 0, paused: false, invOpen: false });
   border.visible = true;
   document.body.classList.remove('ended', 'victory', 'inv-open');
   for (const id of ['end', 'victory', 'pause', 'inv']) $(id).classList.add('hidden');
@@ -412,7 +412,7 @@ function startBusPhase() {
   G.phase = 'bus';
   for (const l of G.loot.slice()) removeLoot(l);
   for (const a of G.actors) {
-    if (a.car) { a.car.driver = null; a.car = null; }
+    if (a.car) clearSeat(a);
     resetLoadout(a);
     a.hp = 100; a.shield = 0; a.alive = true; a.kills = 0; a.slideT = 0; a.crouch = false; a.dmgDealt = 0; a.emoteT = 0;
     a.wait = false; a.spec = false; a.thanked = false; a.place = 0;
@@ -440,7 +440,7 @@ function startBusPhase() {
 on('clientBus', () => {
   G.matchStart = G.time;
   const a = G.player;
-  if (a.car) { a.car.driver = null; a.car = null; }
+  if (a.car) clearSeat(a);
   resetLoadout(a);
   a.hp = 100; a.shield = 0; a.alive = true; a.kills = 0; a.slideT = 0; a.crouch = false; a.dmgDealt = 0; a.emoteT = 0;
   a.wait = false; a.thanked = false; a.place = 0;
@@ -583,7 +583,7 @@ function update(dt) {
     }
     if (!client) updateSprings(a, dt);
     a.model.position.copy(a.pos);
-    a.model.rotation.y = a.yaw;
+    a.model.rotation.y = a.car && !a.lean ? a.car.yaw : a.yaw;      // Beifahrer sitzen gerade, rausgelehnt drehen sie sich mit
     if (a.model.visible && a.pos.distanceToSquared(camera.position) < 220 * 220) animateCharacter(a, dt);
   }
   updateFoley(dt);

@@ -300,3 +300,5 @@ body.inv-open #cross, body.inv-open #hotbar { visibility: hidden; }
 @media (max-width: 700px) { .inv-slot { height: 84px; } .inv-ammo { grid-template-columns: repeat(3, 1fr); } }
 .inv-close { display: none; float: right; font-size: 14px; padding: 4px 10px; border: 1px solid #4a586c; cursor: pointer; }
 body.touch .inv-close { display: inline-block; }
+.ping.mate { color: #8cc6ff; } .ping.mate i { border-color: #4aa3ff; }
+.opt select { flex: 1; max-width: 200px; padding: 5px 8px; background: #1b2230; color: #eef0f2; border: 1px solid #3a4658; font: inherit; }

@@ -236,6 +236,11 @@ function decide(a, ai) {
   }
   // Duo: nicht zu weit vom Teamkameraden weglaufen
   const m = ai.mate;
+  const mk = m && !m.isBot && G.marks && G.marks[m.id];
+  if (G.mode === 'duo' && mk && G.time - mk.t < 25 && mk.pos.distanceTo(a.pos) > 5) {   // Teamkamerad hat etwas markiert: hinlaufen
+    ai.goal = mk.pos.clone(); ai.goalObj = null; ai.goalSince = G.time; ai.route = planRoute(a, ai.goal);
+    return;
+  }
   if (G.mode === 'duo' && m && m.alive && !m.wait && m.state !== 'bus' && m.pos.distanceTo(a.pos) > 32) {
     ai.goal = m.pos.clone(); ai.goalObj = null; ai.goalSince = G.time; ai.route = planRoute(a, ai.goal);
     return;
