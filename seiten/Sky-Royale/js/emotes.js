@@ -40,14 +40,13 @@ export function updateEmoteWheel(dt) {
   if (!can) { if (open) close(); heldT = 0; return; }
   if (held) {
     heldT += dt;
-    if (!open && (heldT > 0.22 || touchMode)) {      // halten öffnet das Rad (Touch: sofort)
+    if (!open && (heldT > 0.22 || (touchMode && !padConnected))) {      // halten öffnet das Rad (Touch: sofort)
       open = true; G.wheelOpen = true; sel = -1; v.x = v.y = 0;
       root.classList.remove('hidden'); sfx('invopen', 0, { vol: 0.6 });
     }
   } else if (heldT > 0) {
     if (!open) { if (a.emoteT > 0) a.emoteT = 0; else play(last); }   // kurz getippt
-    else if (!touchMode) { if (sel >= 0) play(sel); close(); }
-    else close();
+    else { if (sel >= 0) play(sel); close(); }        // loslassen spielt die Auswahl
     heldT = 0;
   }
   if (!open) return;
@@ -63,5 +62,5 @@ export function updateEmoteWheel(dt) {
   }
   [...root.querySelectorAll('.ew-item')].forEach((d, i) => d.classList.toggle('sel', i === sel));
   root.querySelector('.ew-center b').textContent = sel >= 0 ? EMOTES[sel].name : 'Emote wählen';
-  root.querySelector('.ew-center small').textContent = touchMode ? 'antippen' : padConnected ? 'rechter Stick · loslassen' : 'Maus bewegen · ' + promptKey('emote') + ' loslassen';
+  root.querySelector('.ew-center small').textContent = padConnected ? 'rechter Stick · Steuerkreuz loslassen' : touchMode ? 'antippen' : 'Maus bewegen · ' + promptKey('emote') + ' loslassen';
 }

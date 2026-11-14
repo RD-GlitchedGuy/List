@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { G, on, RARITIES } from './state.js';
 import { DEFS, AMMO, stat } from './items.js';
-import { aliveCount, matesOf } from './actors.js';
+import { aliveCount, matesOf, memberColor } from './actors.js';
 import { stormInfo, outside } from './storm.js';
 import { camState } from './player.js';
 import { interactLabel } from './loot.js';
@@ -171,8 +171,9 @@ export function updateHud(dt) {
     if (!s) { node.style.display = 'none'; return; }
     node.style.display = 'block';
     node.style.left = Math.max(20, Math.min(innerWidth - 20, s[0])) + 'px'; node.style.top = Math.max(30, Math.min(innerHeight - 10, s[1])) + 'px';
-    node.classList.toggle('mate', !!p.mate);
-    node.querySelector('span').textContent = (p.mate ? p.name + ' · ' : '') + Math.round(p.pos.distanceTo(a.pos)) + ' m';
+    const col = memberColor(G.actors.find(o => o.id === p.owner) || G.player);
+    node.style.color = col; node.firstChild.style.borderColor = col;
+    node.querySelector('span').textContent = Math.round(p.pos.distanceTo(a.pos)) + ' m';
   });
 
   drawMinimap();
@@ -194,11 +195,12 @@ function updateMate(a) {
     row.querySelector('.mh').style.width = Math.max(0, m.hp) + '%';
     row.querySelector('.ms').style.width = Math.max(0, m.shield) + '%';
     row.classList.toggle('out', !m.alive);
+    row.style.borderLeftColor = memberColor(m);
     const tag = tags.children[i];
     const show = m.alive && m.state !== 'bus' && m.model.visible && !(G.spectate === m && !a.alive);
     const s = show ? toScreen(v3.copy(m.pos).setY(m.pos.y + 2.25)) : null;
     if (!s) { tag.style.display = 'none'; return; }
-    tag.style.display = 'block';
+    tag.style.display = 'block'; tag.firstChild.style.background = memberColor(m);
     tag.style.left = Math.max(30, Math.min(innerWidth - 30, s[0])) + 'px'; tag.style.top = Math.max(20, Math.min(innerHeight - 20, s[1])) + 'px';
     tag.querySelector('span').textContent = `${m.name} · ${Math.round(m.pos.distanceTo(a.pos))} m`;
   });
@@ -275,10 +277,10 @@ function drawMap(ctx, size, cx, cz, span, big) {
     const t = poi.name.toUpperCase(); ctx.strokeText(t, x, y); ctx.fillText(t, x, y);
   }
   for (const p of G.pings) {
-    ctx.fillStyle = p.mate ? '#4aa3ff' : '#f2c230'; ctx.save(); ctx.translate(X(p.pos.x), Z(p.pos.z)); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
+    ctx.fillStyle = memberColor(G.actors.find(o => o.id === p.owner) || G.player); ctx.save(); ctx.translate(X(p.pos.x), Z(p.pos.z)); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
   }
   if (G.phase !== 'warmup') for (const mt of matesOf(G.player)) if (mt.alive && mt.state !== 'bus') {
-    ctx.fillStyle = '#4aa3ff'; ctx.strokeStyle = '#0d1a2a'; ctx.lineWidth = 2;
+    ctx.fillStyle = memberColor(mt); ctx.strokeStyle = '#0d1a2a'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(X(mt.pos.x), Z(mt.pos.z), big ? 6 : 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   }
   const a = !G.player.alive && G.spectate && G.spectate.alive ? G.spectate : G.player;

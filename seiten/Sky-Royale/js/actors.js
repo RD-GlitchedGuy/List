@@ -82,6 +82,13 @@ export function aliveTeams() { const s = new Set(); for (const a of G.actors) if
 export const teamOf = a => (a.team !== undefined && a.team !== null && a.team >= 0 ? a.team : 1000 + a.id);
 export const sameTeam = (a, b) => teamSize() > 1 && a && b && a !== b && teamOf(a) === teamOf(b);
 export const matesOf = a => (teamSize() > 1 && a ? G.actors.filter(o => o !== a && teamOf(o) === teamOf(a)) : []);
+// Feste Farbe je Platz im Team (alle sehen dieselbe): Gelb, Blau, Grün, Orange
+const TEAM_COLORS = ['#f2c230', '#4aa3ff', '#5fd16a', '#ff8a3d'];
+export function memberColor(a) {
+  if (!a || teamSize() === 1) return TEAM_COLORS[0];
+  const team = G.actors.filter(o => teamOf(o) === teamOf(a)).sort((x, y) => x.id - y.id);
+  return TEAM_COLORS[Math.max(0, team.indexOf(a)) % 4];
+}
 // erster noch lebender Teamkamerad (sonst irgendeiner)
 export const mateOf = a => { const m = matesOf(a); return m.find(o => o.alive && !o.wait) || m[0] || null; };
 export function removeActor(a) {

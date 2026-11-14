@@ -94,7 +94,7 @@ export function updateInventory(dt) {
   }
   if (!open) return;
   // Zeiger: Maus (gefangen) oder rechter Stick
-  const usesCursor = !touchMode;
+  const usesCursor = !touchMode || padConnected;
   cursor.style.display = usesCursor ? 'block' : 'none';
   if (usesCursor) {
     cur.x = THREE.MathUtils.clamp(cur.x + mouse.dx + analog.lookX * 900 * dt, 0, innerWidth - 2);
@@ -114,8 +114,8 @@ export function updateInventory(dt) {
 
 function render() {
   const a = G.player;
-  root.querySelector('.inv-head small').textContent = touchMode ? 'Antippen: ausrüsten / tauschen · Ablegen-Feld: wegwerfen'
-    : padConnected ? 'Steuerkreuz ↑ zum Schließen · A: ausrüsten / tauschen · X: ablegen · rechter Stick: Zeiger' : `${bindLabel('inventory')} loslassen zum Schließen · Klick: ausrüsten / tauschen · Rechtsklick: ablegen`;
+  root.querySelector('.inv-head small').textContent = padConnected ? 'Steuerkreuz ↑ zum Schließen · A: ausrüsten / tauschen · X: ablegen · rechter Stick: Zeiger'
+    : touchMode ? 'Antippen: ausrüsten / tauschen · Ablegen-Feld: wegwerfen' : `${bindLabel('inventory')} loslassen zum Schließen · Klick: ausrüsten / tauschen · Rechtsklick: ablegen`;
   [...slotsEl.children].forEach((d, s) => {
     const it = a.inv[s];
     d.firstChild.textContent = padConnected || touchMode ? '' : bindShort(s === 0 ? 'pickaxe' : 'slot' + s);

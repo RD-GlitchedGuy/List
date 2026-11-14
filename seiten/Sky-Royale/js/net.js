@@ -156,6 +156,7 @@ function hostHandle(entry, d) {
   switch (d.t) {
     case 'requeue': emit('requeue', a); break;
     case 'mark': forwardPing(a, V(d.p)); break;
+    case 'unmark': forwardUnping(a); break;
     case 'thank': if (a.state === 'bus') { a.thanked = false; thankDriverRemote(a); } break;
     case 'st': {
       if (!a.alive) return;
@@ -244,13 +245,30 @@ export const req = {
 // Pings: eigene immer sichtbar, in Teams auch bei allen Teamkameraden
 export function setPing(a, pos) {
   G.pings = G.pings.filter(p => p.owner !== a.id);
-  G.pings.push({ pos, t: G.time, owner: a.id, mate: a !== G.player, name: a.name });
+  G.pings.push({ pos, t: G.time, owner: a.id, mate: a !== G.player });
   if (!isClient()) (G.marks || (G.marks = {}))[a.id] = { pos, t: G.time };     // für Bot-Teamkameraden
 }
 export function placePing(a, pos) {
+  // Nochmal genau auf den eigenen Ping zielen = Ping entfernen
+  const own = G.pings.find(p => p.owner === a.id);
+  if (own && own.pos.distanceTo(pos) < 2.5) { removePing(a); return false; }
   setPing(a, pos);
-  if (!matesOf(a).length) return;
+  if (!matesOf(a).length) return true;
   if (isClient()) toHost({ t: 'mark', p: v3(pos) }); else forwardPing(a, pos);
+  return true;
+}
+// Eigenen Ping entfernen (auch bei den Teamkameraden)
+export function removePing(a) {
+  G.pings = G.pings.filter(p => p.owner !== a.id);
+  if (!matesOf(a).length) return;
+  if (isClient()) toHost({ t: 'unmark' }); else forwardUnping(a);
+}
+function forwardUnping(a) {
+  if (G.marks) delete G.marks[a.id];
+  for (const m of matesOf(a)) {
+    if (m === G.player) G.pings = G.pings.filter(p => p.owner !== a.id);
+    else if (m.isRemote) toActor(m, { t: 'unmark', id: a.id });
+  }
 }
 function forwardPing(a, pos) {
   if (a !== G.player) G.marks = Object.assign(G.marks || {}, { [a.id]: { pos, t: G.time } });
@@ -300,6 +318,7 @@ function clientHandle(d, onChange) {
     case 'actor-': { const a = byId(d.id); if (a && a !== G.player) { removeActor(a); if (G.spectate === a) G.spectate = null; } break; }
     case 'feed': emit('feed', d.txt, !!d.me); break;
     case 'mark': { const o = byId(d.id); if (o) { setPing(o, V(d.p)); sfx('ping', 0, { vol: 0.7, rate: 0.9 }); } break; }
+    case 'unmark': G.pings = G.pings.filter(p => p.owner !== d.id); break;
     case 'wheel': if (G.bus) { G.bus.driver = G.player; emit('wheel'); } break;
     case 'start': emit('netStart', d); break;
     case 'snap': applySnap(d); break;

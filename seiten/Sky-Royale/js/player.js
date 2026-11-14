@@ -9,7 +9,7 @@ import { trigger, startReload, current } from './combat.js';
 import { exitBus, thankDriver } from './bus.js';
 import { findInteract, interact } from './loot.js';
 import { nearestCar, driveCar, seatActor } from './cars.js';
-import { requestCar, leaveCar, placePing } from './net.js';
+import { requestCar, leaveCar, placePing, removePing } from './net.js';
 import { raycast } from './physics.js';
 import { sfx } from './audio.js';
 
@@ -67,7 +67,7 @@ export function updatePlayer(dt) {
     if (hit('prevSlot')) cycleSlot(a, -1);
     if (hit('reload')) startReload(a);
     if (a.lean && a.adsT > 0.5 && !G.invOpen && (down('fire') || hit('fire'))) { const [o, d] = a.aimRay(); trigger(a, o, d, hit('fire')); }
-    if (hit('ping') && !G.invOpen) { const h = raycast(G.camera.position, camState.dir, 900); if (h) { placePing(a, h.point.clone()); sfx('ping'); } }
+    if (hit('ping') && !G.invOpen) { const h = raycast(G.camera.position, camState.dir, 900); if (h) sfx(placePing(a, h.point.clone()) ? 'ping' : 'click'); }
     if (hit('interact') || hit('padUse')) leaveCar(a);
     return;
   }
@@ -143,10 +143,14 @@ export function updatePlayer(dt) {
     trigger(a, o, d, hit('fire'));
   }
 
+  // Eigenen Ping erreicht -> verschwindet
+  const myPing = G.pings.find(p => p.owner === a.id);
+  if (myPing && Math.hypot(myPing.pos.x - a.pos.x, myPing.pos.z - a.pos.z) < 3.5 && Math.abs(myPing.pos.y - a.pos.y) < 4) removePing(a);
+
   // Pingen mit mittlerer Maustaste
   if (hit('ping') && !G.invOpen) {
     const hit = raycast(G.camera.position, camState.dir, 900);
-    if (hit) { placePing(a, hit.point.clone()); sfx('ping'); }
+    if (hit) sfx(placePing(a, hit.point.clone()) ? 'ping' : 'click');
   }
 }
 
