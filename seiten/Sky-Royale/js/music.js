@@ -5,6 +5,7 @@ import { hit } from './input.js';
 
 const CREDITS = 'skyroyale.credits.v1';
 let widget = null, frame = null, ready = false, playing = false, cur = null, wantPlay = false, loadedUrl = '';
+let dock = null, peekUntil = 0, closed = false, playAsked = 0, readyWait = null;
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // Nur echte SoundCloud-Adressen annehmen
@@ -22,59 +23,89 @@ function loadApi() {
   });
 }
 
-// Player (neu) laden, wenn sich der Link geändert hat
+// ---------- Pop-up unten links: der echte SoundCloud-Player (zeigt Titel, Künstler, Play-Knopf) ----------
+function buildDock() {
+  dock = document.getElementById('music-dock');
+  dock.innerHTML = `<div class="md-head"><b>♪ Musik</b><a href="https://soundcloud.com/signin" target="_blank" rel="noopener" title="Optional – nötig nur für private oder Go+-Titel">Bei SoundCloud anmelden</a><button class="md-x" title="Ausblenden">✕</button></div>
+    <div class="md-frame"></div><div class="md-msg"></div>`;
+  dock.querySelector('.md-x').onclick = () => { closed = true; peekUntil = 0; show(); };
+  document.getElementById('music-tab').onclick = () => { closed = false; show(); };
+  setInterval(show, 250);
+}
+function msg(t) { if (dock) dock.querySelector('.md-msg').textContent = t || ''; status(t); }
+export function peekMusic(sec = 6) { peekUntil = performance.now() + sec * 1000; show(); }
+// Sichtbar: in Menüs immer (außer weggeklickt), im Spiel nur kurz als Pop-up bei neuem Song oder Tastendruck
+function show() {
+  if (!dock) return;
+  const inGame = !!document.pointerLockElement;
+  const has = !!frame;
+  const on = has && (inGame ? performance.now() < peekUntil : !closed);
+  dock.classList.toggle('on', on);
+  dock.classList.toggle('peek', inGame);
+  const tab = document.getElementById('music-tab');
+  tab.classList.toggle('hidden', !has || on || inGame);
+  // Abspielen angefordert, aber nichts passiert: meist blockiert der Browser das automatische Abspielen
+  if (playAsked && !playing && performance.now() - playAsked > 4000) {
+    playAsked = 0;
+    msg('Dein Browser hat das automatische Abspielen blockiert – klick einmal im Player auf ▶ (Esc öffnet das Menü).');
+    closed = false; peekMusic(12);
+  }
+}
+
+// Player (neu) laden, wenn sich der Link geändert hat. Rückgabe: true, sobald der Player wirklich bereit ist.
 export async function setMusicUrl(url) {
+  if (!dock) buildDock();
   url = (url || '').trim();
-  if (url === loadedUrl && frame) return true;
+  if (url === loadedUrl && frame) return ready;
   stopMusic();
   if (frame) { frame.remove(); frame = null; widget = null; ready = false; }
-  loadedUrl = url; cur = null;
-  if (!url || !validUrl(url)) { updateBar(); return !url; }
-  try { await loadApi(); } catch (e) { status('SoundCloud konnte nicht geladen werden'); return false; }
+  loadedUrl = url; cur = null; msg('');
+  if (!url) { show(); return true; }
+  if (!validUrl(url)) { show(); return false; }
+  try { await loadApi(); } catch (e) { msg('SoundCloud konnte nicht geladen werden (Internet / Werbeblocker?).'); return false; }
   frame = document.createElement('iframe');
-  frame.id = 'sc-frame'; frame.allow = 'autoplay'; frame.title = 'SoundCloud-Player';
+  frame.id = 'sc-frame'; frame.title = 'SoundCloud-Player';
+  frame.setAttribute('allow', 'autoplay; encrypted-media');        // neuere SoundCloud-Streams sind verschlüsselt
+  frame.setAttribute('scrolling', 'no'); frame.setAttribute('frameborder', 'no');
   frame.src = 'https://w.soundcloud.com/player/?url=' + encodeURIComponent(url) +
-    '&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=false&color=%23e6c14d';
-  document.getElementById('music-dock').appendChild(frame);
+    '&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false&color=%23e6c14d';
+  dock.querySelector('.md-frame').appendChild(frame);
+  closed = false; show();
   widget = window.SC.Widget(frame);
   const E = window.SC.Widget.Events;
-  widget.bind(E.READY, () => {
-    ready = true; applyVolume();
-    widget.getSounds(list => (list || []).forEach(addCredit));       // ganze Playlist in die Credits
-    if (wantPlay) widget.play();
+  const ok = await new Promise(res => {
+    readyWait = setTimeout(() => res(false), 12000);
+    widget.bind(E.READY, () => { clearTimeout(readyWait); res(true); });
   });
-  widget.bind(E.PLAY, () => { playing = true; widget.getCurrentSound(s => { if (s) { cur = s; addCredit(s); } updateBar(); }); });
-  widget.bind(E.PAUSE, () => { playing = false; updateBar(); });
-  widget.bind(E.FINISH, () => { playing = false; updateBar(); });
-  widget.bind(E.ERROR, () => status('Dieser Link lässt sich nicht abspielen (privat oder gesperrt?)'));
+  if (!ok) { msg('Der Player lädt nicht. Ist der Link öffentlich und richtig?'); return false; }
+  ready = true; applyVolume();
+  widget.getSounds(list => (list || []).forEach(addCredit));       // ganze Playlist in die Credits
+  widget.bind(E.PLAY, () => {
+    playing = true; playAsked = 0; msg('');
+    widget.getCurrentSound(s => { if (s) { if (!cur || cur.id !== s.id) peekMusic(6); cur = s; addCredit(s); } });
+  });
+  widget.bind(E.PAUSE, () => { playing = false; });
+  widget.bind(E.FINISH, () => { playing = false; });
+  widget.bind(E.ERROR, () => msg('Dieser Titel lässt sich hier nicht abspielen (privat, Go+ oder vom Künstler gesperrt).'));
+  if (wantPlay) playMusic();
   return true;
 }
 
 export function applyVolume() { if (widget && ready) widget.setVolume(Math.round((G.settings.musicVol ?? 0.5) * 100)); }
-export function playMusic() { wantPlay = true; if (widget && ready) widget.play(); }
-export function stopMusic() { wantPlay = false; if (widget && ready) widget.pause(); }
-export function toggleMusic() { if (!widget) return; if (playing) stopMusic(); else playMusic(); }
-export function nextTrack() { if (widget && ready) { widget.next(); wantPlay = true; widget.play(); } }
+export function playMusic() { wantPlay = true; if (widget && ready) { widget.play(); playAsked = performance.now(); } }
+export function stopMusic() { wantPlay = false; playAsked = 0; if (widget && ready) widget.pause(); }
+export function toggleMusic() { if (!widget) return; peekMusic(4); if (playing) stopMusic(); else playMusic(); }
+export function nextTrack() { if (widget && ready) { widget.next(); wantPlay = true; widget.play(); peekMusic(6); } }
 
 // Rundenstart: automatisch spielen, wenn eingestellt
-export function musicRoundStart() { if (G.settings.musicAuto && widget) playMusic(); }
+export function musicRoundStart() { if (G.settings.musicAuto && widget && !playing) playMusic(); }
 
 // Tasten im Spiel
 export function updateMusic() {
   if (hit('music')) toggleMusic();
   if (hit('musicNext')) nextTrack();
 }
-
-// Anzeige "läuft gerade" (unten links im Spiel und im Pausenmenü)
-function updateBar() {
-  const t = cur && playing ? `${cur.title} · ${cur.user ? cur.user.username : ''}` : '';
-  const bar = document.getElementById('music-now');
-  if (bar) { bar.classList.toggle('hidden', !t); bar.querySelector('span').textContent = t; }
-  const p = document.getElementById('music-pause');
-  if (p) p.innerHTML = cur ? `<b>${playing ? 'Läuft' : 'Pausiert'}:</b> <a href="${esc(cur.permalink_url)}" target="_blank" rel="noopener">${esc(cur.title)}</a> von
-    <a href="${esc(cur.user && cur.user.permalink_url)}" target="_blank" rel="noopener">${esc(cur.user && cur.user.username)}</a> · auf <a href="https://soundcloud.com" target="_blank" rel="noopener">SoundCloud</a>` : '';
-}
-function status(msg) { const s = document.getElementById('music-status'); if (s) s.textContent = msg; }
+function status(t) { const s = document.getElementById('music-status'); if (s && t) s.textContent = t; }
 
 // ---------- Credits ----------
 function loadCredits() { try { return JSON.parse(localStorage.getItem(CREDITS) || '[]'); } catch (e) { return []; } }

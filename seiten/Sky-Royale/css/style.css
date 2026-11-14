@@ -318,15 +318,20 @@ body.touch .inv-close { display: inline-block; }
 body.touch #emote-wheel { pointer-events: auto; }
 
 /* ---------- Musik & Credits ---------- */
-#music-dock { position: fixed; left: -9999px; top: 0; width: 300px; height: 120px; overflow: hidden; }
-#music-dock iframe { width: 300px; height: 120px; border: 0; }
-#music-now { position: absolute; left: 22px; bottom: 82px; max-width: 340px; padding: 4px 8px; background: rgba(18, 24, 33, .6); font-size: 12px; color: #d9dee4;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#music-now i { font-style: normal; color: #e6c14d; margin-right: 6px; }
-#music-now small { margin-left: 8px; color: #ff8a3d; font-weight: 700; }
-body.ended #music-now { display: none; }
-#music-pause { margin-top: 10px; font-size: 12px; color: #aeb7c2; line-height: 1.4; }
-#music-pause a, .cred a, #credits .dim a { color: #e6c14d; text-decoration: none; }
+#music-dock { position: fixed; left: 16px; bottom: 100px; width: 330px; z-index: 35; background: #1c2430; border: 1px solid #3a4658;
+  opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .25s, transform .25s; }
+#music-dock.on { opacity: 1; pointer-events: auto; transform: none; }
+#music-dock.peek { pointer-events: none; }
+#music-dock .md-head { display: flex; align-items: center; gap: 10px; padding: 5px 8px; font-size: 12px; }
+#music-dock .md-head b { font: italic 700 14px var(--cond); color: #e6c14d; flex: 1; }
+#music-dock .md-head a { color: #ff8a3d; text-decoration: none; }
+#music-dock .md-x { width: auto; margin: 0; padding: 2px 8px; font-size: 12px; background: #2f3a4a; color: #c9d0d8; }
+#music-dock.peek .md-head a, #music-dock.peek .md-x { display: none; }
+#music-dock iframe { display: block; width: 100%; height: 166px; border: 0; }
+#music-dock .md-msg { padding: 0 8px; font-size: 12px; color: #e6c14d; }
+#music-dock .md-msg:not(:empty) { padding: 6px 8px; }
+#music-tab { position: fixed; left: 16px; bottom: 100px; z-index: 35; width: auto; margin: 0; padding: 6px 14px; font-size: 13px; }
+.cred a, #credits .dim a { color: #e6c14d; text-decoration: none; }
 #btn-credits { position: absolute; left: 20px; bottom: 20px; width: auto; padding: 8px 18px; margin: 0; }
 #credits { z-index: 40; }
 #credits h3 { font: italic 800 18px var(--cond); text-transform: uppercase; margin: 14px 0 4px; color: #e6c14d; }

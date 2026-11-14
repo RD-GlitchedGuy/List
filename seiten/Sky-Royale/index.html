@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Sky Royale</title>
-<link rel="stylesheet" href="css/style.css?v=17">
+<link rel="stylesheet" href="css/style.css?v=18">
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="importmap">
 {
@@ -14,33 +14,33 @@
     "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
     "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js",
-    "./js/actors.js": "./js/actors.js?v=17",
-    "./js/audio.js": "./js/audio.js?v=17",
-    "./js/bots.js": "./js/bots.js?v=17",
-    "./js/bus.js": "./js/bus.js?v=17",
-    "./js/cars.js": "./js/cars.js?v=17",
-    "./js/combat.js": "./js/combat.js?v=17",
-    "./js/effects.js": "./js/effects.js?v=17",
-    "./js/emotes.js": "./js/emotes.js?v=17",
-    "./js/foley.js": "./js/foley.js?v=17",
-    "./js/hud.js": "./js/hud.js?v=17",
-    "./js/input.js": "./js/input.js?v=17",
-    "./js/inv.js": "./js/inv.js?v=17",
-    "./js/items.js": "./js/items.js?v=17",
-    "./js/loot.js": "./js/loot.js?v=17",
-    "./js/main.js": "./js/main.js?v=17",
-    "./js/models.js": "./js/models.js?v=17",
-    "./js/movement.js": "./js/movement.js?v=17",
-    "./js/music.js": "./js/music.js?v=17",
-    "./js/net.js": "./js/net.js?v=17",
-    "./js/physics.js": "./js/physics.js?v=17",
-    "./js/player.js": "./js/player.js?v=17",
-    "./js/settings.js": "./js/settings.js?v=17",
-    "./js/sky.js": "./js/sky.js?v=17",
-    "./js/state.js": "./js/state.js?v=17",
-    "./js/storm.js": "./js/storm.js?v=17",
-    "./js/touch.js": "./js/touch.js?v=17",
-    "./js/world.js": "./js/world.js?v=17"
+    "./js/actors.js": "./js/actors.js?v=18",
+    "./js/audio.js": "./js/audio.js?v=18",
+    "./js/bots.js": "./js/bots.js?v=18",
+    "./js/bus.js": "./js/bus.js?v=18",
+    "./js/cars.js": "./js/cars.js?v=18",
+    "./js/combat.js": "./js/combat.js?v=18",
+    "./js/effects.js": "./js/effects.js?v=18",
+    "./js/emotes.js": "./js/emotes.js?v=18",
+    "./js/foley.js": "./js/foley.js?v=18",
+    "./js/hud.js": "./js/hud.js?v=18",
+    "./js/input.js": "./js/input.js?v=18",
+    "./js/inv.js": "./js/inv.js?v=18",
+    "./js/items.js": "./js/items.js?v=18",
+    "./js/loot.js": "./js/loot.js?v=18",
+    "./js/main.js": "./js/main.js?v=18",
+    "./js/models.js": "./js/models.js?v=18",
+    "./js/movement.js": "./js/movement.js?v=18",
+    "./js/music.js": "./js/music.js?v=18",
+    "./js/net.js": "./js/net.js?v=18",
+    "./js/physics.js": "./js/physics.js?v=18",
+    "./js/player.js": "./js/player.js?v=18",
+    "./js/settings.js": "./js/settings.js?v=18",
+    "./js/sky.js": "./js/sky.js?v=18",
+    "./js/state.js": "./js/state.js?v=18",
+    "./js/storm.js": "./js/storm.js?v=18",
+    "./js/touch.js": "./js/touch.js?v=18",
+    "./js/world.js": "./js/world.js?v=18"
   }
 }
 </script>
@@ -83,7 +83,6 @@
   <div id="channel"><div class="lbl"></div><div class="bar"><i></i></div></div>
 
   <div id="mate-tags"></div>
-  <div id="music-now" class="hidden"><i>♪</i><span></span><small>SoundCloud</small></div>
   <div id="mate-box" class="hidden"></div>
   <div id="vitals">
     <div class="vrow sh"><svg viewBox="0 0 20 20"><path d="M10 1l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V4z" fill="currentColor"/></svg>
@@ -130,7 +129,7 @@
     </div>
     <button id="btn-settings" class="ghost">Einstellungen &amp; Tastenbelegung</button>
     <div id="keyhelp"></div>
-    <div class="ver"><span id="ver">Version 17</span></div>
+    <div class="ver"><span id="ver">Version 18</span></div>
   </div>
   <button id="btn-credits" class="ghost">Credits</button>
 </div>
@@ -139,6 +138,7 @@
   <div class="panel wide"><h2>Credits</h2><div class="body" id="credits-body"></div><div class="row"><button id="credits-close">Schließen</button></div></div>
 </div>
 <div id="music-dock"></div>
+<button id="music-tab" class="ghost hidden">♪ Musik</button>
 
 <div id="pause" class="screen hidden">
   <div class="panel small">
@@ -147,7 +147,6 @@
     <button id="btn-psettings" class="ghost">Einstellungen</button>
     <button id="btn-restart" class="ghost">Neue Runde</button>
     <button id="btn-pmenu" class="ghost">Hauptmenü</button>
-    <div id="music-pause"></div>
   </div>
 </div>
 
@@ -164,6 +163,6 @@
 <div id="inv" class="hidden"></div>
 <div id="emote-wheel" class="hidden"></div>
 
-<script type="module" src="js/main.js?v=17"></script>
+<script type="module" src="js/main.js?v=18"></script>
 </body>
 </html>
