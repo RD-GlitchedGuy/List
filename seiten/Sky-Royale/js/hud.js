@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { G, on, RARITIES } from './state.js';
 import { DEFS, AMMO, stat } from './items.js';
-import { aliveCount, mateOf } from './actors.js';
+import { aliveCount, matesOf } from './actors.js';
 import { stormInfo, outside } from './storm.js';
 import { camState } from './player.js';
 import { interactLabel } from './loot.js';
 import { sfx } from './audio.js';
-import { hit, down, bindLabel } from './input.js';
+import { hit, down, bindLabel, bindShort, promptKey, padConnected } from './input.js';
 import { netStatus } from './net.js';
 
 const $ = id => document.getElementById(id);
@@ -78,7 +78,7 @@ function toScreen(p) {
 
 export function updateHud(dt) {
   const a = G.player;
-  if (hit('map')) { bigMap = !bigMap; sfx(bigMap ? 'mapopen' : 'invclose'); el['bigmap-wrap'].classList.toggle('hidden', !bigMap); el['bigmap-wrap'].querySelector('.maphint').textContent = bindLabel('map') + ' – Karte schließen'; }
+  if (hit('map')) { bigMap = !bigMap; sfx(bigMap ? 'mapopen' : 'invclose'); el['bigmap-wrap'].classList.toggle('hidden', !bigMap); el['bigmap-wrap'].querySelector('.maphint').textContent = promptKey('map') + ' – Karte schließen'; }
   // FPS
   fpsT += dt; fpsN++; if (fpsT > 0.5) { el.fps.textContent = Math.round(fpsN / fpsT) + ' FPS'; fpsT = fpsN = 0; }
   bannerT -= dt; if (bannerT <= 0) el.banner.style.opacity = 0;
@@ -88,6 +88,8 @@ export function updateHud(dt) {
   objT -= dt; el.objhp.style.opacity = objT > 0 ? 1 : 0;
   stormBanners();
   updatePoi(a);
+  // Tastennamen an der Hotbar folgen der eigenen Belegung (mit Controller ausgeblendet)
+  el.slots.forEach((d, s) => { const t = padConnected ? '' : bindShort(s === 0 ? 'pickaxe' : 'slot' + s), k = d.firstChild; if (k.textContent !== t) k.textContent = t; });
   updateMate(a);
   el.scoreboard.classList.toggle('hidden', !down('scoreboard'));
   if (down('scoreboard')) scoreboard();
@@ -139,9 +141,9 @@ export function updateHud(dt) {
   // Interaktion
   const o = camState.interact;
   let prompt = null, col = '#888';
-  if (a.alive && a.state === 'car') prompt = a.seat > 0 ? `<kbd>${bindLabel('interact')}</kbd>Aussteigen &nbsp; <kbd>${bindLabel('aim')}</kbd>Aus dem Fenster lehnen` : '<kbd>E</kbd>Aussteigen &nbsp; <kbd>Leertaste</kbd>Handbremse';
-  else if (a.alive && o) { prompt = `<kbd>E</kbd>${interactLabel(o)}`; if (o.item && !o.item.ammo) col = RARITIES[o.item.rarity || 0].color; }
-  else if (a.alive && camState.car) prompt = `<kbd>E</kbd>${camState.car.driver ? 'Mitfahren' : 'Einsteigen'} · ${camState.car.name}`;
+  if (a.alive && a.state === 'car') prompt = a.seat > 0 ? `<kbd>${promptKey('interact')}</kbd>Aussteigen &nbsp; <kbd>${promptKey('aim')}</kbd>Aus dem Fenster lehnen` : `<kbd>${promptKey('interact')}</kbd>Aussteigen &nbsp; <kbd>${promptKey('jump')}</kbd>Handbremse`;
+  else if (a.alive && o) { prompt = `<kbd>${promptKey('interact')}</kbd>${interactLabel(o)}`; if (o.item && !o.item.ammo) col = RARITIES[o.item.rarity || 0].color; }
+  else if (a.alive && camState.car) prompt = `<kbd>${promptKey('interact')}</kbd>${camState.car.driver ? 'Mitfahren' : 'Einsteigen'} · ${camState.car.name}`;
   if (prompt) { el.prompt.style.display = 'block'; el.prompt.innerHTML = prompt; el.prompt.style.borderLeftColor = col; }
   else el.prompt.style.display = 'none';
   if (a.state === 'car' && a.car) { el.speedo.style.display = 'block'; el.speedo.textContent = Math.round(Math.abs(a.car.speed) * 3.6) + ' km/h'; }
@@ -177,22 +179,29 @@ export function updateHud(dt) {
   if (bigMap) drawBigMap();
 }
 
-// ---------- Duo: Teamkamerad (Markierung über dem Kopf + Lebensanzeige) ----------
+// ---------- Teams: Kameraden (Markierung über dem Kopf + Lebensanzeigen links) ----------
 function updateMate(a) {
-  const m = G.mode === 'duo' && G.phase !== 'warmup' && !a.wait ? mateOf(a) : null;
-  const box = $('mate-box'), tag = $('mate-tag');
-  box.classList.toggle('hidden', !m); 
-  if (!m) { tag.style.display = 'none'; return; }
-  box.querySelector('b').textContent = m.name;
-  box.querySelector('.mh').style.width = Math.max(0, m.hp) + '%';
-  box.querySelector('.ms').style.width = Math.max(0, m.shield) + '%';
-  box.classList.toggle('out', !m.alive);
-  const show = m.alive && m.state !== 'bus' && m.model.visible;
-  const s = show ? toScreen(v3.copy(m.pos).setY(m.pos.y + 2.25)) : null;
-  if (!s || (G.spectate === m && !a.alive)) { tag.style.display = 'none'; return; }
-  tag.style.display = 'block';
-  tag.style.left = Math.max(30, Math.min(innerWidth - 30, s[0])) + 'px'; tag.style.top = Math.max(20, Math.min(innerHeight - 20, s[1])) + 'px';
-  tag.querySelector('span').textContent = `${m.name} · ${Math.round(m.pos.distanceTo(a.pos))} m`;
+  const mates = G.phase !== 'warmup' && !a.wait ? matesOf(a) : [];
+  const box = $('mate-box'), tags = $('mate-tags');
+  box.classList.toggle('hidden', !mates.length);
+  while (box.children.length < mates.length) { const d = document.createElement('div'); d.className = 'mrow'; d.innerHTML = '<b></b><div class="mbar"><i class="ms"></i></div><div class="mbar"><i class="mh"></i></div>'; box.appendChild(d); }
+  while (box.children.length > mates.length) box.lastChild.remove();
+  while (tags.children.length < mates.length) { const d = document.createElement('div'); d.className = 'mate-tag'; d.innerHTML = '<i></i><span></span>'; tags.appendChild(d); }
+  while (tags.children.length > mates.length) tags.lastChild.remove();
+  mates.forEach((m, i) => {
+    const row = box.children[i];
+    row.querySelector('b').textContent = m.name;
+    row.querySelector('.mh').style.width = Math.max(0, m.hp) + '%';
+    row.querySelector('.ms').style.width = Math.max(0, m.shield) + '%';
+    row.classList.toggle('out', !m.alive);
+    const tag = tags.children[i];
+    const show = m.alive && m.state !== 'bus' && m.model.visible && !(G.spectate === m && !a.alive);
+    const s = show ? toScreen(v3.copy(m.pos).setY(m.pos.y + 2.25)) : null;
+    if (!s) { tag.style.display = 'none'; return; }
+    tag.style.display = 'block';
+    tag.style.left = Math.max(30, Math.min(innerWidth - 30, s[0])) + 'px'; tag.style.top = Math.max(20, Math.min(innerHeight - 20, s[1])) + 'px';
+    tag.querySelector('span').textContent = `${m.name} · ${Math.round(m.pos.distanceTo(a.pos))} m`;
+  });
 }
 
 // ---------- Kartenbild: einmal die echte Map von oben rendern ----------
@@ -268,8 +277,7 @@ function drawMap(ctx, size, cx, cz, span, big) {
   for (const p of G.pings) {
     ctx.fillStyle = p.mate ? '#4aa3ff' : '#f2c230'; ctx.save(); ctx.translate(X(p.pos.x), Z(p.pos.z)); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
   }
-  const mt = G.mode === 'duo' && G.phase !== 'warmup' ? mateOf(G.player) : null;
-  if (mt && mt.alive && mt.state !== 'bus') {
+  if (G.phase !== 'warmup') for (const mt of matesOf(G.player)) if (mt.alive && mt.state !== 'bus') {
     ctx.fillStyle = '#4aa3ff'; ctx.strokeStyle = '#0d1a2a'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(X(mt.pos.x), Z(mt.pos.z), big ? 6 : 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   }

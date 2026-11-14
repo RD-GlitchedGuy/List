@@ -246,6 +246,7 @@ body.touch #netinfo { top: 70px; left: 290px; }
 /* ---------- Modus-Auswahl & Warteschlange ---------- */
 .modes { display: flex; gap: 0; margin: 10px 0 2px; }
 .modes button { margin: 0; background: #2f3a4a; color: #b9c1cc; border: 1px solid #4a586c; }
+.modes button { flex: 1; }
 .modes button + button { border-left: 0; }
 .modes button.sel { background: #e6c14d; color: #15181d; border-color: #e6c14d; }
 #queue-msg { min-height: 18px; font-size: 13px; color: #d1ac3c; margin: 2px 0 4px; }
@@ -256,16 +257,17 @@ body.touch #netinfo { top: 70px; left: 290px; }
 .end-btns { width: 520px; }
 
 /* ---------- Duo: Teamkamerad ---------- */
-#mate-box { position: absolute; left: 22px; bottom: 112px; width: 220px; padding: 6px 8px; background: rgba(18, 24, 33, .72); border-left: 3px solid #4aa3ff; }
+#mate-box { position: absolute; left: 22px; bottom: 112px; width: 220px; display: flex; flex-direction: column; gap: 4px; }
+#mate-box .mrow { padding: 6px 8px; background: rgba(18, 24, 33, .72); border-left: 3px solid #4aa3ff; }
 #mate-box b { font: italic 700 15px var(--cond); display: block; margin-bottom: 4px; }
 #mate-box .mbar { height: 6px; background: rgba(255,255,255,.12); margin-top: 3px; }
 #mate-box .mbar i { display: block; height: 100%; background: #5fb85a; }
 #mate-box .mbar i.ms { background: #4aa3ff; }
-#mate-box.out { opacity: .5; } #mate-box.out b::after { content: ' · ausgeschieden'; font-weight: 400; font-size: 12px; }
-#mate-tag { position: absolute; display: none; transform: translate(-50%, -100%); text-align: center; pointer-events: none; }
-#mate-tag i { display: block; width: 12px; height: 12px; margin: 0 auto 2px; background: #4aa3ff; transform: rotate(45deg); border: 2px solid #0d1a2a; }
-#mate-tag span { font: italic 700 13px var(--cond); color: #cfe6ff; text-shadow: 0 1px 2px #000; white-space: nowrap; }
-body.ended #mate-box, body.ended #mate-tag { display: none !important; }
+#mate-box .mrow.out { opacity: .5; } #mate-box .mrow.out b::after { content: ' · ausgeschieden'; font-weight: 400; font-size: 12px; }
+#mate-tags .mate-tag { position: absolute; display: none; transform: translate(-50%, -100%); text-align: center; pointer-events: none; }
+#mate-tags .mate-tag i { display: block; width: 12px; height: 12px; margin: 0 auto 2px; background: #4aa3ff; transform: rotate(45deg); border: 2px solid #0d1a2a; }
+#mate-tags .mate-tag span { font: italic 700 13px var(--cond); color: #cfe6ff; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+body.ended #mate-box, body.ended #mate-tags .mate-tag { display: none !important; }
 body.touch #mate-box { left: 14px; top: 78px; bottom: auto; width: 180px; }
 
 /* ---------- Inventar ---------- */
@@ -302,3 +304,15 @@ body.inv-open #cross, body.inv-open #hotbar { visibility: hidden; }
 body.touch .inv-close { display: inline-block; }
 .ping.mate { color: #8cc6ff; } .ping.mate i { border-color: #4aa3ff; }
 .opt select { flex: 1; max-width: 200px; padding: 5px 8px; background: #1b2230; color: #eef0f2; border: 1px solid #3a4658; font: inherit; }
+
+/* ---------- Emote-Rad ---------- */
+#emote-wheel { position: fixed; left: 50%; top: 50%; width: 0; height: 0; z-index: 25; }
+#emote-wheel::before { content: ''; position: absolute; left: -175px; top: -175px; width: 350px; height: 350px; border-radius: 50%;
+  background: rgba(16, 21, 29, .78); border: 1px solid #3a4658; }
+.ew-center { position: absolute; left: -70px; top: -24px; width: 140px; text-align: center; }
+.ew-center b { display: block; font: italic 800 18px var(--cond); text-transform: uppercase; }
+.ew-center small { font-size: 11px; color: #9aa5b3; }
+.ew-item { position: absolute; width: 96px; margin: -20px 0 0 -48px; padding: 9px 4px; text-align: center; font: italic 700 14px var(--cond);
+  background: #263142; border: 2px solid #374458; color: #dfe4ea; cursor: pointer; }
+.ew-item.sel { border-color: #e6c14d; color: #fff; background: #324057; }
+body.touch #emote-wheel { pointer-events: auto; }

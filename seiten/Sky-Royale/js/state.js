@@ -25,6 +25,11 @@ export const WATER_Y = 0;
 export const GRAVITY = 26;
 export const MAP_HALF = 320;
 
+// Spielmodi: Teamgröße und Anzeigename
+export const MODES = { solo: 1, duo: 2, trio: 3, squad: 4 };
+export const MODE_NAME = { solo: 'Solo', duo: 'Duo', trio: 'Trio', squad: 'Squad' };
+export const teamSize = () => MODES[G.mode] || 1;
+
 export const RARITIES = [
   { name: 'Gewöhnlich',   color: '#8f9297' },
   { name: 'Ungewöhnlich', color: '#4f9a3a' },

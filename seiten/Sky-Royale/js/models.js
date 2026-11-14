@@ -268,19 +268,55 @@ export function animateCharacter(a, dt) {
     if (hs < 0.3) { const br = Math.sin(G_t() * 1.8); P.spineX = br * 0.025; P.headX = -br * 0.02; }
   }
   if (a.emoteT > 0 && st === 'ground' && hs < 0.6) {
-    // Tanz-Emote
-    const t = G_t() * 7.5;
+    // Emotes (Liste in emotes.js)
+    const t = G_t() * 7.5, sn = Math.sin(t), ab = Math.abs(sn);
     armsFree = false;
-    if ((a.emoteStyle || 0) % 2) {
-      P.shLX = P.shRX = 0.15; P.shLZ = -0.25 + Math.sin(t) * 0.9; P.shRZ = 0.25 + Math.sin(t) * 0.9;
-      P.shLX = Math.sin(t * 2) * 0.55; P.shRX = -Math.sin(t * 2) * 0.55;
-      P.pelvisZ = -Math.sin(t) * 0.22; P.spineZ = Math.sin(t) * 0.12;
-      P.kneeLX = P.kneeRX = -0.18 - Math.abs(Math.sin(t)) * 0.2; P.hipLX = P.hipRX = 0.1;
-    } else {
-      P.shLX = Math.PI - 0.35 + Math.sin(t) * 0.45; P.shRX = Math.PI - 0.35 - Math.sin(t) * 0.45; P.elLX = P.elRX = 0.55;
-      P.shLZ = -0.2; P.shRZ = 0.2;
-      P.pelvisY = 0.97 - Math.abs(Math.sin(t)) * 0.08; P.kneeLX = P.kneeRX = -Math.abs(Math.sin(t)) * 0.45; P.hipLX = P.hipRX = Math.abs(Math.sin(t)) * 0.25;
-      P.spineZ = Math.sin(t / 2) * 0.18; P.headX = Math.sin(t) * 0.15;
+    switch ((a.emoteStyle || 0) & 7) {
+      case 1:                                                     // Hüftschwung
+        P.shLZ = -0.25 + sn * 0.9; P.shRZ = 0.25 + sn * 0.9;
+        P.shLX = Math.sin(t * 2) * 0.55; P.shRX = -Math.sin(t * 2) * 0.55;
+        P.pelvisZ = -sn * 0.22; P.spineZ = sn * 0.12;
+        P.kneeLX = P.kneeRX = -0.18 - ab * 0.2; P.hipLX = P.hipRX = 0.1;
+        break;
+      case 2: {                                                   // Winken
+        const w = Math.sin(G_t() * 9);
+        P.shRX = Math.PI - 0.5; P.shRZ = 0.35 + w * 0.3; P.elRX = 0.35 + w * 0.25;
+        P.shLX = 0.1; P.shLZ = -0.08; P.spineZ = -0.06; P.headX = -0.08;
+        break;
+      }
+      case 3: {                                                   // Roboter: abgehackte Schritte
+        const st4 = Math.floor(G_t() * 3.2) % 4, side = st4 < 2 ? 1 : -1, up = st4 % 2;
+        P.shLX = up ? 1.55 : 0.2; P.elLX = up ? 0 : 1.57; P.shRX = up ? 0.2 : 1.55; P.elRX = up ? 1.57 : 0;
+        P.spineY = side * 0.35; P.pelvisYw = -side * 0.12; P.headX = up ? -0.12 : 0.1;
+        P.kneeLX = P.kneeRX = up ? -0.25 : -0.05; P.hipLX = P.hipRX = up ? 0.12 : 0.02; P.pelvisY = up ? 0.92 : 0.97;
+        break;
+      }
+      case 4: {                                                   // Jubeln: Fäuste hoch, kleine Sprünge
+        const j = Math.abs(Math.sin(G_t() * 6));
+        P.shLX = P.shRX = Math.PI - 0.15 - j * 0.45; P.shLZ = -0.3; P.shRZ = 0.3; P.elLX = P.elRX = 0.25 + j * 0.4;
+        P.pelvisY = 0.97 - (1 - j) * 0.08; P.kneeLX = P.kneeRX = -(1 - j) * 0.45; P.hipLX = P.hipRX = (1 - j) * 0.25; P.headX = -0.25;
+        break;
+      }
+      case 5: {                                                   // Hüpfer: seitlich wippen, Arme schwingen
+        P.pelvisY = 0.97 - ab * 0.14; P.kneeLX = P.kneeRX = -ab * 0.6; P.hipLX = P.hipRX = ab * 0.32;
+        P.pelvisZ = Math.sin(t / 2) * 0.12; P.spineZ = -Math.sin(t / 2) * 0.16;
+        P.shLX = 0.6 + Math.sin(t / 2) * 0.6; P.shRX = 0.6 - Math.sin(t / 2) * 0.6; P.shLZ = -0.5; P.shRZ = 0.5; P.elLX = P.elRX = 0.9;
+        break;
+      }
+      case 6:                                                     // Salutieren
+        P.shRX = 2.1; P.shRZ = 0.85; P.elRX = 2.25; P.shLX = 0.02; P.shLZ = -0.05; P.headX = -0.06; P.spineX = -0.04;
+        break;
+      case 7: {                                                   // Klatschen
+        const c2 = Math.abs(Math.sin(G_t() * 7));
+        P.shLX = P.shRX = 1.25; P.elLX = P.elRX = 0.55; P.shLZ = 0.05 + c2 * 0.35; P.shRZ = -0.05 - c2 * 0.35;
+        P.headX = 0.05; P.spineX = -0.04;
+        break;
+      }
+      default:                                                    // Arme hoch
+        P.shLX = Math.PI - 0.35 + sn * 0.45; P.shRX = Math.PI - 0.35 - sn * 0.45; P.elLX = P.elRX = 0.55;
+        P.shLZ = -0.2; P.shRZ = 0.2;
+        P.pelvisY = 0.97 - ab * 0.08; P.kneeLX = P.kneeRX = -ab * 0.45; P.hipLX = P.hipRX = ab * 0.25;
+        P.spineZ = Math.sin(t / 2) * 0.18; P.headX = sn * 0.15;
     }
   }
   if (armsFree) {

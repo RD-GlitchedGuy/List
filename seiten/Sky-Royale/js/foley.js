@@ -8,6 +8,7 @@ import { heightAt, objectAtHit, objMaterial } from './world.js';
 import { DEFS } from './items.js';
 
 const down = new THREE.Vector3(0, -1, 0), o = new THREE.Vector3();
+const DANCE = new Set([0, 1, 3, 5]);          // Emotes mit Musik (siehe emotes.js)
 const AIR = new Set(['air', 'skydive', 'glide', 'launch', 'grapple']);
 
 // Untergrund unter den Füßen: Gras/Sand im Gelände, sonst das Material des Gebäudes
@@ -54,7 +55,7 @@ export function updateFoley(dt) {
     if (a.state === 'swim') { f.swim = (f.swim || 0) + h; if (f.swim > 1.9) { f.swim = 0; sfx('swim', dist); } }
     if (a.ladder) { f.lad += Math.abs(dy); if (f.lad > 0.75) { f.lad = 0; sfx('ladder', dist); } }
 
-    if (a.emoteT > 0 && a.state === 'ground' && dist < dancerD) { dancer = a; dancerD = dist; }
+    if (a.emoteT > 0 && a.state === 'ground' && DANCE.has(a.emoteStyle || 0) && dist < dancerD) { dancer = a; dancerD = dist; }
   }
   if (!me) return;
   const f = me._f; if (!f) return;

@@ -38,7 +38,7 @@ export function updatePlayer(dt) {
   const s = 0.0022 * G.settings.sens * (a.ads ? Math.max(0.25, zoom) * G.settings.adsSens : 1);
   // Controller-Stick: Drehgeschwindigkeit statt Mausweg
   const ps = 2.6 * G.settings.padSens * (a.ads ? Math.max(0.3, zoom) * G.settings.adsSens : 1) * dt;
-  if (!G.invOpen) {
+  if (!G.invOpen && !G.wheelOpen) {
     a.yaw -= mouse.dx * s + analog.lookX * ps * 1.25;
     a.pitch = THREE.MathUtils.clamp(a.pitch - (mouse.dy * s + analog.lookY * ps * 0.8) * (G.settings.invertY ? -1 : 1), -1.45, 1.45);
   }
@@ -93,8 +93,7 @@ export function updatePlayer(dt) {
   const stx = analog.mx + touchStick.x, sty = analog.my + touchStick.y;
   if (Math.hypot(stx, sty) > 0.05) { f = THREE.MathUtils.clamp(f + sty, -1, 1); r = THREE.MathUtils.clamp(r + stx, -1, 1); }
   // Emote: B tanzt, Bewegung oder Schießen bricht ab
-  if (hit('emote') && a.state === 'ground') { a.emoteT = a.emoteT > 0 ? 0 : 8; a.emoteStyle = (a.emoteStyle || 0) + 1; }
-  if (a.emoteT > 0 && (f || r || down('fire') || down('jump'))) a.emoteT = 0;
+  if (a.emoteT > 0 && !G.wheelOpen && (f || r || down('fire') || down('jump'))) a.emoteT = 0;
   const sy = Math.sin(a.yaw), cy = Math.cos(a.yaw);
   let mx = -sy * f + cy * r, mz = -cy * f - sy * r;
   const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
@@ -138,7 +137,7 @@ export function updatePlayer(dt) {
 
   // Feuern / Benutzen
   const canAct = a.state === 'ground' || a.state === 'air' || a.state === 'grapple';
-  if (canAct && !G.invOpen && (down('fire') || hit('fire'))) {
+  if (canAct && !G.invOpen && !G.wheelOpen && (down('fire') || hit('fire'))) {
     if (a.sprint) a.sprint = false;
     const [o, d] = a.aimRay();
     trigger(a, o, d, hit('fire'));

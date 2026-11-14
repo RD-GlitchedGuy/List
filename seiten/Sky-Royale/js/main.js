@@ -1,7 +1,7 @@
 // Sky Royale – Einstieg, Lobby, Spielphasen und Hauptschleife
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { G, on, emit, rand } from './state.js';
+import { G, on, emit, rand, MODES, MODE_NAME, teamSize } from './state.js';
 import { initInput, lockPointer, endFrame, bindLabel, setUnloadGuard, pollGamepad, virtHit, touchMode, locked } from './input.js';
 import { initTouch, setTouch, showTouch, updateTouch } from './touch.js';
 import { camState } from './player.js';
@@ -10,7 +10,7 @@ import { createSky, createWater, updateSky, HORIZON } from './sky.js';
 import { elimEffect, sparkle, confetti } from './effects.js';
 import { sfx } from './audio.js';
 import { loadWorld, heightAt, isLand, updateObjects, restoreWorld } from './world.js';
-import { createActor, resetLoadout, aliveCount, aliveTeams, teamOf, mateOf, removeActor, eliminate } from './actors.js';
+import { createActor, resetLoadout, aliveCount, aliveTeams, teamOf, mateOf, matesOf, removeActor, eliminate } from './actors.js';
 import { createBots, updateBots, planBotDrops } from './bots.js';
 import { setupPlayer, updatePlayer, updateCamera } from './player.js';
 import { updateActorCombat, updateProjectiles, updateThrowables } from './combat.js';
@@ -23,7 +23,9 @@ import { createStorm, startStorm, updateStorm, resetStorm } from './storm.js';
 import { initCars, stepCar, resetCars, clearSeat } from './cars.js';
 import { updateEffects } from './effects.js';
 import { initHud, updateHud, message, banner } from './hud.js';
+import { promptKey } from './input.js';
 import { initInventory, updateInventory } from './inv.js';
+import { initEmoteWheel, updateEmoteWheel, playEmote, EMOTES } from './emotes.js';
 import { raycast } from './physics.js';
 import { initAudio, stopLoops } from './audio.js';
 import { updateFoley } from './foley.js';
@@ -31,7 +33,7 @@ import { NET, isClient, isHost, isMP, hostLobby, joinLobby, lobbyNames, createRe
   queuePublic, leaveNet, netActorAdd, netActorRemove, makePuppet, applySync } from './net.js';
 
 const WARMUP = 20;
-const total = () => (G.mode === 'duo' ? 24 : 25);
+const total = () => (teamSize() === 1 ? 25 : 24);
 const canvas = document.getElementById('game');
 const $ = id => document.getElementById(id);
 
@@ -115,6 +117,7 @@ loadWorld('assets/maps/sky-royale.glb', p => { $('load-bar').style.width = (p * 
     createStorm(); G.storm.wall.userData.noMap = true;
     initHud();
     initInventory();
+    initEmoteWheel();
     initTouch(); G.onTouchSetting = setTouch; setTouch(G.settings.touch);
     $('load-txt').textContent = 'Bereit';
     $('load-bar').style.width = '100%';
@@ -132,27 +135,26 @@ function keyHelp() {
 }
 keyHelp();
 $('btn-settings').onclick = () => openSettings(keyHelp);
-$('btn-psettings').onclick = () => openSettings();
+$('btn-psettings').onclick = () => openSettings(keyHelp);
 const playerName = () => { const n = $('name').value.trim().slice(0, 16) || 'Spieler'; try { localStorage.setItem('skyroyale.name', n); } catch (e) {} return n; };
 
-// Modus: Solo oder Duo – jeweils eine öffentliche Hauptlobby
+// Modus: Solo, Duo, Trio oder Squad – jeweils eine öffentliche Hauptlobby
 let mode = 'solo';
-try { mode = localStorage.getItem('skyroyale.mode') === 'duo' ? 'duo' : 'solo'; } catch (e) {}
+try { const m = localStorage.getItem('skyroyale.mode'); if (MODES[m]) mode = m; } catch (e) {}
 function setMode(m) {
   mode = m; if (G.phase === 'menu' || G.phase === 'loading') G.mode = m;
-  $('mode-solo').classList.toggle('sel', m === 'solo'); $('mode-duo').classList.toggle('sel', m === 'duo');
+  for (const k in MODES) $('mode-' + k).classList.toggle('sel', m === k);
   try { localStorage.setItem('skyroyale.mode', m); } catch (e) {}
 }
 setMode(mode);
-$('mode-solo').onclick = () => { if (!isMP()) setMode('solo'); };
-$('mode-duo').onclick = () => { if (!isMP()) setMode('duo'); };
+for (const k in MODES) $('mode-' + k).onclick = () => { if (!isMP()) setMode(k); };
 function menuBusy(v) { for (const id of ['btn-play', 'btn-host', 'btn-join', 'btn-offline']) $(id).disabled = v; }
 
 let queueing = false, queueTry = 0, queueTimer = 0;
 function queueGame() {
   if (isMP() || G.phase !== 'menu') return;
   menuBusy(true); queueing = true; G.mode = mode;
-  $('queue-msg').textContent = `Suche ${mode === 'duo' ? 'Duo' : 'Solo'}-Lobby …`;
+  $('queue-msg').textContent = `Suche ${MODE_NAME[mode]}-Lobby …`;
   queuePublic(mode, playerName(), (err, kind) => { if (err) queueFail(err, kind); });
   clearTimeout(queueTimer);
   queueTimer = setTimeout(() => { if (G.phase === 'menu' && queueing) queueFail('Lobby antwortet nicht', 'timeout'); }, 10000);
@@ -196,7 +198,7 @@ function updateLobby(err) {
   if (isHost()) {
     $('lobby-code').textContent = NET.code;
     $('btn-start').classList.remove('hidden');
-    $('lobby-msg').textContent = `${G.mode === 'duo' ? 'Duo' : 'Solo'} · ${names.length} Spieler · Rest wird mit Bots aufgefüllt. Code an Freunde schicken.`;
+    $('lobby-msg').textContent = `${MODE_NAME[G.mode]} · ${names.length} Spieler · Rest wird mit Bots aufgefüllt. Code an Freunde schicken.`;
   } else $('lobby-msg').textContent = names.length ? 'Verbunden – warte auf den Host …' : 'Verbinde …';
 }
 
@@ -281,7 +283,7 @@ function resetRound() {
   resetCars(); resetStorm();
   if (G.bus && G.bus.model) G.scene.remove(G.bus.model);
   G.bus = null;
-  Object.assign(G, { pings: [], marks: {}, spectate: null, winner: null, victory: null, ended: false, timeScale: 1, matchStart: 0, paused: false, invOpen: false });
+  Object.assign(G, { pings: [], marks: {}, botsOnly: false, wheelOpen: false, spectate: null, winner: null, victory: null, ended: false, timeScale: 1, matchStart: 0, paused: false, invOpen: false });
   border.visible = true;
   document.body.classList.remove('ended', 'victory', 'inv-open');
   for (const id of ['end', 'victory', 'pause', 'inv']) $(id).classList.add('hidden');
@@ -390,7 +392,7 @@ on('respawn', a => {
   placeOnPad(a, (Math.random() * G.spawnPoints.length) | 0);
   net.respawn(a);
 });
-on('wheel', () => banner('Du lenkst den Battle-Bus!', `${bindLabel('left')} / ${bindLabel('right')} lenken · ${bindLabel('jump')} abspringen`, 5));
+on('wheel', () => banner('Du lenkst den Battle-Bus!', `${promptKey('left')} / ${promptKey('right')} lenken · ${promptKey('jump')} abspringen`, 5));
 on('netLost', () => {
   if (!isClient()) return;
   if (NET.public) {                              // Host ist weg: neue öffentliche Lobby suchen (einer wird neuer Host)
@@ -401,11 +403,16 @@ on('netLost', () => {
   } else endGame('lost', null);
 });
 
-// Duo: Menschen zuerst zusammen, Rest mit Bots auffüllen
+// Teams: Menschen zuerst zusammen, Rest mit Bots auffüllen. Bots folgen einem Menschen im Team, sonst dem ersten Bot.
 function assignTeams() {
+  const n = teamSize();
   const list = G.actors.slice().sort((x, y) => (x.isBot - y.isBot) || x.id - y.id);
-  list.forEach((a, i) => { a.team = G.mode === 'duo' ? i >> 1 : i; if (a.ai) a.ai.mate = null; });
-  if (G.mode === 'duo') for (const a of list) if (a.ai) a.ai.mate = list.find(o => o !== a && o.team === a.team) || null;
+  list.forEach((a, i) => { a.team = Math.floor(i / n); if (a.ai) a.ai.mate = null; });
+  if (n > 1) for (const a of list) if (a.ai) {
+    const team = list.filter(o => o.team === a.team);
+    const lead = team.find(o => !o.isBot) || team[0];
+    a.ai.mate = lead !== a ? lead : null;
+  }
 }
 
 function startBusPhase() {
@@ -455,8 +462,8 @@ on('eliminated', (t, killer) => {
   if (G.ended) updateEndBar();
   if (t === G.player) {
     sfx('defeat');
-    const mate = mateOf(t);
-    G.spectate = mate && mate.alive ? mate : killer && killer !== t && killer.alive ? killer : null;
+    const mate = matesOf(t).find(o => o.alive && !o.wait);
+    G.spectate = mate ? mate : killer && killer !== t && killer.alive ? killer : null;
     const kn = killer && killer !== t ? killer.name : null, r = G.round;
     setTimeout(() => { if (G.round === r && !G.player.alive) endGame('lose', kn); }, 1600);
   }
@@ -472,9 +479,9 @@ function announceWinner(w) {
   const r = G.round;
   if (isHost()) setTimeout(() => { if (G.round === r) { resetRound(); startWarmup(); } }, 10000);   // nächste Runde für alle
   if (G.player.wait) { emit('feed', `${w.name} hat die Runde gewonnen – gleich geht's los`, true); return; }
-  const mine = w === G.player || (G.mode === 'duo' && teamOf(w) === teamOf(G.player));
+  const mine = w === G.player || (teamSize() > 1 && teamOf(w) === teamOf(G.player));
   if (mine) { startVictory(w); return; }
-  w.emoteT = 1e9; w.emoteStyle = 1;                   // Gewinner tanzt
+  w.emoteT = 1e9; w.emoteStyle = [1, 3, 5][(Math.random() * 3) | 0];                   // Gewinner tanzt
   G.spectate = w;
   setTimeout(() => { if (G.round !== r || G.player.wait) return; if (!G.ended) endGame('lose', null); updateEndBar(); }, 1700);
 }
@@ -498,7 +505,7 @@ function updateEndBar() {
   const a = G.player, t = Math.max(0, (a.alive || endKind === 'win' ? G.time : (a.deathTime || G.time)) - (G.matchStart || G.time));
   const win = endKind === 'win', spec = endKind === 'spec', lost = endKind === 'lost';
   $('end').classList.toggle('win', win);
-  $('end-place').textContent = win ? '#1' + (G.mode === 'duo' ? ' · Duo' : ' von ' + G.actors.length) : lost || spec ? '' : a.place ? '#' + a.place : G.mode === 'duo' && (mateOf(a) || {}).alive ? 'Dein Team ist noch im Spiel' : '';
+  $('end-place').textContent = win ? '#1' + (teamSize() > 1 ? ' · ' + MODE_NAME[G.mode] : ' von ' + G.actors.length) : lost || spec ? '' : a.place ? '#' + a.place : matesOf(a).some(o => o.alive && !o.wait) ? 'Dein Team ist noch im Spiel' : '';
   $('end-title').textContent = win ? 'Victory Royale' : lost ? 'Verbindung verloren' : spec ? 'Runde läuft – du schaust zu'
     : G.winner && teamOf(G.winner) !== teamOf(a) ? G.winner.name + ' hat gewonnen' : 'Ausgeschieden';
   const stats = spec ? [[aliveCount(), 'Noch im Spiel']] :
@@ -518,7 +525,7 @@ function startVictory(w) {
   const a = G.player;
   if (a.alive) { a.emoteT = 1e9; a.emoteStyle = 0; a.ads = false; }
   else { G.spectate = w; w.emoteT = 1e9; w.emoteStyle = 0; }
-  $('victory').querySelector('.v3').textContent = `${a.kills} Eliminierungen · ${G.actors.length} Spieler` + (G.mode === 'duo' ? ' · Duo' : '');
+  $('victory').querySelector('.v3').textContent = `${a.kills} Eliminierungen · ${G.actors.length} Spieler` + (teamSize() > 1 ? ' · ' + MODE_NAME[G.mode] : '');
   $('victory').classList.remove('hidden');
   sfx('victory'); setTimeout(() => sfx('horn'), 700);
   if (!isMP()) G.timeScale = 0.3;
@@ -528,9 +535,9 @@ function startVictory(w) {
 $('btn-spectate').onclick = () => nextSpectate();
 // Zuschauen: nächster Spieler per Leertaste/Klick/Tippen/A, Esc (oder B/Menü) zurück zum Ende-Bildschirm
 function nextSpectate() {
-  const mate = mateOf(G.player);
+  const mates = matesOf(G.player);
   const alive = G.actors.filter(a => a.alive && !a.wait && a !== G.player)
-    .sort((x, y) => ((y === mate) - (x === mate)) || (x.isBot - y.isBot) || x.id - y.id);
+    .sort((x, y) => (mates.includes(y) - mates.includes(x)) || (x.isBot - y.isBot) || x.id - y.id);
   if (!alive.length) { G.spectate = null; return; }
   const i = alive.indexOf(G.spectate);
   G.spectate = alive[(i + 1) % alive.length];
@@ -561,12 +568,25 @@ function update(dt) {
   } else if (G.phase === 'bus' || G.phase === 'match') {
     const a = G.player, b = G.bus, inBus = a.state === 'bus' && b;
     if (a.wait) message(G.winner ? 'Nächste Runde startet gleich …' : `Wartebereich · nächste Runde startet nach diesem Match · noch ${aliveCount()} im Spiel`, null);
-    else message(!inBus ? '' : b.driver === a ? `Du lenkst den Bus! ${bindLabel('left')} / ${bindLabel('right')} lenken · ${bindLabel('jump')} abspringen`
-      : !b.doors ? 'Türen öffnen sich …' : `${bindLabel('jump')}: Abspringen` + (a.thanked ? '' : ` · ${bindLabel('emote')}: Beim Busfahrer bedanken`), null);
+    else message(!inBus ? '' : b.driver === a ? `Du lenkst den Bus! ${promptKey('left')} / ${promptKey('right')} lenken · ${promptKey('jump')} abspringen`
+      : !b.doors ? 'Türen öffnen sich …' : `${promptKey('jump')}: Abspringen` + (a.thanked ? '' : ` · ${promptKey('emote')}: Beim Busfahrer bedanken`), null);
     if (!client && G.phase === 'bus' && G.bus && G.bus.done && !G.actors.some(a => a.state === 'bus')) G.phase = 'match';
+    // Online: Alle echten Spieler warten schon, im Match sind nur noch Bots -> Bots raus, neue Runde
+    if (isHost() && !G.winner && !G.botsOnly) {
+      const humans = G.actors.filter(x => !x.isBot);
+      if (humans.some(x => x.wait) && !humans.some(x => x.alive && !x.wait)) {
+        G.botsOnly = true;
+        const txt = 'Nur noch Bots im Spiel – sie werden eliminiert, die nächste Runde startet';
+        emit('feed', txt, true); net.feed(txt);
+        for (const b of G.actors) if (b.isBot && b.alive) { emit('elimFx', b.pos.clone()); b.alive = false; b.state = 'dead'; b.model.visible = false; }
+        const r = G.round;
+        setTimeout(() => { if (G.round === r) { resetRound(); startWarmup(); } }, 2500);
+      }
+    }
   }
 
   updateInventory(dt);
+  updateEmoteWheel(dt);
   updatePlayer(dt);
   if (!client) updateBots(dt);
   updateBus(dt);

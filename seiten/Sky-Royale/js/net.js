@@ -9,7 +9,7 @@ import { remoteShots, visualShots, remoteMelee, remoteThrow, visualThrow, addPad
 import { wobbleObject, destroyObject } from './world.js';
 import { startBusWith, thankDriver as thankDriverRemote } from './bus.js';
 import { enterCar, exitCar, placeCar, freeSeat, setSeat, clearSeat } from './cars.js';
-import { mateOf } from './actors.js';
+import { matesOf } from './actors.js';
 import { createItem } from './items.js';
 import { explosion, shockRing } from './effects.js';
 import { sfx } from './audio.js';
@@ -27,7 +27,7 @@ const byId = id => G.actors.find(a => a.id === id);
 
 // ---------------- Lobby ----------------
 // Öffentliche Lobbys: feste Peer-ID pro Modus. Wer die ID zuerst belegt, ist Host – alle anderen verbinden sich dorthin.
-const NETVER = 11, MAXC = 11;
+const NETVER = 12, MAXC = 11;
 const pubId = mode => `skyroyale-rdg-v${NETVER}-${mode}`;
 function newPeer(id) {
   if (!window.Peer) throw new Error('PeerJS konnte nicht geladen werden');
@@ -241,7 +241,7 @@ export const req = {
   requeue() { toHost({ t: 'requeue' }); },
 };
 
-// Pings: eigene immer sichtbar, im Duo auch beim Teamkameraden
+// Pings: eigene immer sichtbar, in Teams auch bei allen Teamkameraden
 export function setPing(a, pos) {
   G.pings = G.pings.filter(p => p.owner !== a.id);
   G.pings.push({ pos, t: G.time, owner: a.id, mate: a !== G.player, name: a.name });
@@ -249,14 +249,15 @@ export function setPing(a, pos) {
 }
 export function placePing(a, pos) {
   setPing(a, pos);
-  if (G.mode !== 'duo') return;
+  if (!matesOf(a).length) return;
   if (isClient()) toHost({ t: 'mark', p: v3(pos) }); else forwardPing(a, pos);
 }
 function forwardPing(a, pos) {
   if (a !== G.player) G.marks = Object.assign(G.marks || {}, { [a.id]: { pos, t: G.time } });
-  const m = mateOf(a); if (!m) return;
-  if (m === G.player) { setPing(a, pos); sfx('ping', 0, { vol: 0.7, rate: 0.9 }); }
-  else if (m.isRemote) toActor(m, { t: 'mark', id: a.id, p: v3(pos) });
+  for (const m of matesOf(a)) {
+    if (m === G.player) { setPing(a, pos); sfx('ping', 0, { vol: 0.7, rate: 0.9 }); }
+    else if (m.isRemote) toActor(m, { t: 'mark', id: a.id, p: v3(pos) });
+  }
 }
 
 // Auto ein-/aussteigen (lokal oder per Anfrage)
@@ -362,7 +363,7 @@ function applySnap(d) {
     if (!a.alive) { a.alive = true; a.pos.set(r[1], r[2], r[3]); }
     a.netPos = new THREE.Vector3(r[1], r[2], r[3]); a.netYaw = r[4]; a.netPitch = r[5];
     a.state = STATES[r[6]] || 'ground'; a.hp = r[7]; a.shield = r[8];
-    a.crouch = !!(r[11] & 1); a.slideT = r[11] & 2 ? 1 : 0; a.diving = !!(r[11] & 4); a.emoteT = r[11] & 8 ? 1 : 0; a.emoteStyle = r[11] & 16 ? 1 : 0; a.lean = !!(r[11] & 32);
+    a.crouch = !!(r[11] & 1); a.slideT = r[11] & 2 ? 1 : 0; a.diving = !!(r[11] & 4); a.emoteT = r[11] & 8 ? 1 : 0; a.emoteStyle = (r[11] >> 6) & 7; a.lean = !!(r[11] & 32);
     setHeld(a, r[12] ? [r[12], r[13]] : null);
     a.vel.set(r[14], 0, r[15]);
     const car = r[16] >= 0 ? G.cars[r[16]] : null;
@@ -429,7 +430,7 @@ export function netUpdate(dt) {
       NET.sendT = 1 / 20;
       const a = G.player, it = a.inv[a.slot];
       toHost({
-        t: 'st', p: v3(a.pos), v: v3(a.vel), y: r2(a.yaw), pi: r2(a.pitch), s: a.state, c: a.crouch ? 1 : 0, sl: a.slideT > 0 ? 1 : 0, dv: a.diving ? 1 : 0, em: a.emoteT > 0 ? (a.emoteStyle || 0) % 2 + 1 : 0, ln: a.lean ? 1 : 0,
+        t: 'st', p: v3(a.pos), v: v3(a.vel), y: r2(a.yaw), pi: r2(a.pitch), s: a.state, c: a.crouch ? 1 : 0, sl: a.slideT > 0 ? 1 : 0, dv: a.diving ? 1 : 0, em: a.emoteT > 0 ? ((a.emoteStyle || 0) & 7) + 1 : 0, ln: a.lean ? 1 : 0,
         h: it ? [it.key, it.rarity || 0] : null, bs: G.bus && G.bus.driver === a ? r2(G.bus.steer) : undefined,
         car: a.car ? { id: a.car.id, p: v3(a.car.pos), y: r2(a.car.yaw), pi: r2(a.car.pitch), ro: r2(a.car.roll), sp: r2(a.car.speed) } : null,
       });
@@ -441,7 +442,7 @@ function makeSnap() {
   const a = G.actors.map(x => {
     const it = x.inv[x.slot];
     return [x.id, r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.pitch), Math.max(0, STATES.indexOf(x.state)), Math.round(x.hp), Math.round(x.shield),
-      x.alive ? 1 : 0, x.kills, (x.crouch ? 1 : 0) | (x.slideT > 0 ? 2 : 0) | (x.diving ? 4 : 0) | (x.emoteT > 0 ? 8 + ((x.emoteStyle || 0) % 2) * 16 : 0) | (x.lean ? 32 : 0), it ? it.key : '', it ? it.rarity || 0 : 0,
+      x.alive ? 1 : 0, x.kills, (x.crouch ? 1 : 0) | (x.slideT > 0 ? 2 : 0) | (x.diving ? 4 : 0) | (x.emoteT > 0 ? 8 | (((x.emoteStyle || 0) & 7) << 6) : 0) | (x.lean ? 32 : 0), it ? it.key : '', it ? it.rarity || 0 : 0,
       r2(x.vel.x), r2(x.vel.z), x.car ? x.car.id : -1, x.team ?? -1, x.wait ? 1 : 0, x.seat || 0];
   });
   const s = G.storm;

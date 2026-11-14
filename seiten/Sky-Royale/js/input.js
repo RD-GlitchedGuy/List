@@ -98,6 +98,19 @@ export function keyName(code) {
   return code;
 }
 export const bindLabel = action => keyName(binds[action][0] || binds[action][1]);
+// Kurzform für kleine Felder (Hotbar, Inventar)
+const SHORT = { Mouse0: 'LMT', Mouse1: 'MMT', Mouse2: 'RMT', Mouse3: 'M4', Mouse4: 'M5', WheelUp: 'Rad↑', WheelDown: 'Rad↓', Space: 'Leer', ShiftLeft: 'Shift', ControlLeft: 'Strg', AltLeft: 'Alt', CapsLock: 'Caps', Tab: 'Tab' };
+export function bindShort(action) {
+  const c = binds[action][0] || binds[action][1];
+  if (!c) return '';
+  if (SHORT[c]) return SHORT[c];
+  if (/^Key.$/.test(c)) return c.slice(3);
+  if (/^(Digit|Numpad)\d$/.test(c)) return c.slice(-1);
+  return keyName(c);
+}
+// Für Hinweise im Spiel: mit Controller die Controller-Taste, sonst die eigene Tastenbelegung
+const PADNAME = { interact: 'X', jump: 'A', aim: 'LT', fire: 'RT', crouch: 'B', pickaxe: 'Y', map: 'View', emote: '↓', ping: '←', inventory: '↑', reload: 'X' };
+export const promptKey = action => (padConnected && PADNAME[action] ? PADNAME[action] : bindLabel(action));
 
 // ---------- Neue Taste abfangen (Menü) ----------
 let capture = null;

@@ -1,6 +1,6 @@
 // Spieler & Bots: Erstellen, Schaden, Eliminierung, Slots
 import * as THREE from 'three';
-import { G, emit } from './state.js';
+import { G, emit, teamSize } from './state.js';
 import { createItem, DEFS, AMMO } from './items.js';
 import { makeCharacter, setHeldModel } from './models.js';
 import { spawnLoot } from './loot.js';
@@ -64,7 +64,7 @@ export function damage(t, amount, attacker, opts = {}) {
     }
     return;
   }
-  if (sameTeam(attacker, t)) return;          // Duo: kein Teamschaden
+  if (sameTeam(attacker, t)) return;          // Teams: kein Teamschaden
   let rest = amount, toShield = 0;
   if (!opts.ignoreShield) { toShield = Math.min(t.shield, rest); t.shield -= toShield; rest -= toShield; }
   t.hp -= rest;
@@ -80,18 +80,20 @@ export function damage(t, amount, attacker, opts = {}) {
 export function aliveCount() { return G.actors.filter(a => a.alive && !a.wait).length; }
 export function aliveTeams() { const s = new Set(); for (const a of G.actors) if (a.alive && !a.wait) s.add(teamOf(a)); return s.size; }
 export const teamOf = a => (a.team !== undefined && a.team !== null && a.team >= 0 ? a.team : 1000 + a.id);
-export const sameTeam = (a, b) => G.mode === 'duo' && a && b && a !== b && teamOf(a) === teamOf(b);
-export const mateOf = a => G.mode === 'duo' ? G.actors.find(o => o !== a && teamOf(o) === teamOf(a)) : null;
+export const sameTeam = (a, b) => teamSize() > 1 && a && b && a !== b && teamOf(a) === teamOf(b);
+export const matesOf = a => (teamSize() > 1 && a ? G.actors.filter(o => o !== a && teamOf(o) === teamOf(a)) : []);
+// erster noch lebender Teamkamerad (sonst irgendeiner)
+export const mateOf = a => { const m = matesOf(a); return m.find(o => o.alive && !o.wait) || m[0] || null; };
 export function removeActor(a) {
   G.scene.remove(a.model);
   const i = G.actors.indexOf(a); if (i >= 0) G.actors.splice(i, 1);
   if (a.car) clearSeat(a);
   a.alive = false; a.removed = true;
 }
-// Platzierung: im Duo zählt das Team, erst wenn beide raus sind
+// Platzierung: in Teams zählt das Team, erst wenn alle raus sind
 export function setPlace(t, pl) {
   t.place = pl;
-  if (G.mode === 'duo' && pl) for (const o of G.actors) if (o !== t && teamOf(o) === teamOf(t) && !o.place) o.place = pl;
+  if (teamSize() > 1 && pl) for (const o of G.actors) if (o !== t && teamOf(o) === teamOf(t) && !o.place) o.place = pl;
 }
 
 export function eliminate(t, killer, cause) {
@@ -100,14 +102,14 @@ export function eliminate(t, killer, cause) {
   t.model.visible = false;
   if (killer && killer.alive !== undefined && killer !== t) {
     killer.kills++; if (killer === G.player) { sfx('elim'); emit('kill', t, killer.kills); }
-    if (killer.isBot && Math.random() < 0.35) { killer.emoteT = 3; killer.emoteStyle = (Math.random() * 2) | 0; }
+    if (killer.isBot && Math.random() < 0.35) { killer.emoteStyle = (Math.random() * 8) | 0; killer.emoteT = 3; }
   }
   emit('elimFx', t.pos.clone());
   if (t.car) clearSeat(t);
   emit('feed', feedText(t, killer, cause), t === G.player || killer === G.player);
   const warm = G.phase === 'warmup' || t.wait;
   if (!warm) {
-    if (G.mode !== 'duo') t.place = aliveCount() + 1;
+    if (teamSize() === 1) t.place = aliveCount() + 1;
     else if (G.actors.some(o => o !== t && o.alive && !o.wait && teamOf(o) === teamOf(t))) t.place = 0;
     else setPlace(t, aliveTeams() + 1);
   }

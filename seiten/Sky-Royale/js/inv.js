@@ -1,7 +1,7 @@
 // Inventar: Alt (bzw. Steuerkreuz hoch) halten. Anklicken = ausrüsten/markieren, zweiter Klick tauscht, Rechtsklick legt ab.
 import * as THREE from 'three';
 import { G } from './state.js';
-import { down, hit, mouse, analog, touchMode, bindLabel, padConnected, virtDown, padState } from './input.js';
+import { down, hit, mouse, analog, touchMode, bindLabel, bindShort, padConnected, virtDown, padState } from './input.js';
 import { DEFS, AMMO, stat } from './items.js';
 import { RARITIES } from './state.js';
 import { switchSlot } from './actors.js';
@@ -115,9 +115,10 @@ export function updateInventory(dt) {
 function render() {
   const a = G.player;
   root.querySelector('.inv-head small').textContent = touchMode ? 'Antippen: ausrüsten / tauschen · Ablegen-Feld: wegwerfen'
-    : `${bindLabel('inventory')} loslassen zum Schließen · Klick: ausrüsten / tauschen · Rechtsklick: ablegen`;
+    : padConnected ? 'Steuerkreuz ↑ zum Schließen · A: ausrüsten / tauschen · X: ablegen · rechter Stick: Zeiger' : `${bindLabel('inventory')} loslassen zum Schließen · Klick: ausrüsten / tauschen · Rechtsklick: ablegen`;
   [...slotsEl.children].forEach((d, s) => {
     const it = a.inv[s];
+    d.firstChild.textContent = padConnected || touchMode ? '' : bindShort(s === 0 ? 'pickaxe' : 'slot' + s);
     d.classList.toggle('sel', s === a.slot);
     d.classList.toggle('mark', !!mark && mark.slot === s);
     d.classList.toggle('hov', hover === d);
