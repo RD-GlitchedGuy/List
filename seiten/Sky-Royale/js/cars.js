@@ -2,10 +2,13 @@
 import * as THREE from 'three';
 import { G, GRAVITY, WATER_Y } from './state.js';
 import { raycast, groundBelow } from './physics.js';
-import { heightAt } from './world.js';
+import { heightAt, objectAtHit } from './world.js';
 import { damage } from './actors.js';
+import { hitObject } from './combat.js';
+import { isClient } from './net.js';
 import { sfx } from './audio.js';
 
+const SMASH = new Set(['Zaun', 'Heuballen', 'Laterne', 'Lagerfeuer', 'Stein']);
 const MAX = 27, REV = 9, ACC = 11, TURN = 1.7;
 const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), fw = new THREE.Vector3(), q = new THREE.Vector3();
 const eul = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -77,28 +80,41 @@ export function stepCar(c, dt) {
     for (const s of [-0.8, 0, 0.8]) {
       const o = new THREE.Vector3(c.pos.x, c.pos.y + 0.95, c.pos.z).addScaledVector(side, s * c.half.x);
       const hit = raycast(o, dir, c.half.z + Math.abs(dist) + 0.1);
-      if (hit && (!hit.face || Math.abs(hit.face.normal.y) < 0.55)) { blocked = true; break; }
+      // Gelände zählt nie als Wand (Hänge prüft die Steigungsregel unten), nur Gebäude/Bäume/Felsen mit steiler Fläche
+      if (hit && hit.point.y > heightAt(hit.point.x, hit.point.z) + 0.3 && (!hit.face || Math.abs(hit.face.normal.y) < 0.55)) {
+        // Kleinkram (Zaun, Heuballen, Laterne …) fährt man mit Schwung einfach um
+        const ob = objectAtHit(hit);
+        if (ob && SMASH.has(ob.name) && Math.abs(c.speed) > 9 && !isClient()) { hitObject(ob, 9999); c.speed *= 0.8; continue; }
+        blocked = true; break;
+      }
     }
     const nx = c.pos.x + fw.x * dist, nz = c.pos.z + fw.z * dist;
     const edge = Math.sign(dist) * c.half.z * 0.9;
     const fx = nx + fw.x * edge, fz = nz + fw.z * edge;
     if (!blocked && heightAt(fx, fz) < WATER_Y - 0.6) blocked = true;
-    if (!blocked && groundAt(c, fx, fz) - c.pos.y > 1.4) blocked = true;      // Klippe vor dem Auto
+    // Zu steil? Boden an der Vorderkante jetzt und nach dem Schritt vergleichen (Hänge bis ~50° gehen, Mauern/Klippen nicht)
+    if (!blocked) {
+      const hNow = groundAt(c, c.pos.x + fw.x * edge, c.pos.z + fw.z * edge), hNew = groundAt(c, fx, fz);
+      if (hNew - hNow > Math.max(0.45, Math.abs(dist) * 1.25)) blocked = true;
+    }
     if (blocked) {
       if (Math.abs(c.speed) > 8) sfx('carcrash', c.driver === G.player ? 0 : c.pos.distanceTo(G.camera.position), { vol: Math.min(1, Math.abs(c.speed) / 25) });
       c.speed = -c.speed * 0.25;
     } else { c.pos.x = nx; c.pos.z = nz; }
   }
-  // Boden unter Vorder-/Hinterachse und Seiten
+  // Boden unter den vier Rädern (links = Fahrtrichtung gedreht um 90° nach links)
   const L = c.half.z * 0.8, W = c.half.x * 0.8;
-  const hf = groundAt(c, c.pos.x + fw.x * L, c.pos.z + fw.z * L), hb = groundAt(c, c.pos.x - fw.x * L, c.pos.z - fw.z * L);
-  const hl = groundAt(c, c.pos.x + fw.z * W, c.pos.z - fw.x * W), hr = groundAt(c, c.pos.x - fw.z * W, c.pos.z + fw.x * W);
-  const target = Math.max((hf + hb) / 2, (hl + hr) / 2);
+  const lx = fw.z, lz = -fw.x;                                   // Vektor nach links
+  const wheel = (f, s) => groundAt(c, c.pos.x + fw.x * L * f + lx * W * s, c.pos.z + fw.z * L * f + lz * W * s);
+  const fl = wheel(1, 1), fr = wheel(1, -1), bl = wheel(-1, 1), br = wheel(-1, -1);
+  const hf = (fl + fr) / 2, hb = (bl + br) / 2, hl = (fl + bl) / 2, hr = (fr + br) / 2;
+  const target = Math.max((fl + fr + bl + br) / 4, groundAt(c, c.pos.x, c.pos.z));
   if (c.pos.y > target + 0.35) { c.vy -= GRAVITY * dt; c.pos.y += c.vy * dt; if (c.pos.y < target) { c.pos.y = target; c.vy = 0; } }
   else { c.pos.y += (target - c.pos.y) * Math.min(1, dt * 18); if (c.pos.y < target - 0.05) c.pos.y = target - 0.05; c.vy = 0; }
   // Neigung folgt dem Gelände (nur am Boden, in der Luft bleibt sie)
   if (c.vy === 0) {
-    const tp = Math.atan2(hf - hb, L * 2), tr = Math.atan2(hl - hr, W * 2);
+    // Nase hoch = positiver Pitch; positive Rollung hebt die rechte Seite -> rechts höher = positiv
+    const tp = Math.atan2(hf - hb, L * 2), tr = Math.atan2(hr - hl, W * 2);
     c.pitch += (THREE.MathUtils.clamp(tp, -0.75, 0.75) - c.pitch) * Math.min(1, dt * 10);
     c.roll += (THREE.MathUtils.clamp(tr, -0.55, 0.55) - c.roll) * Math.min(1, dt * 10);
   }

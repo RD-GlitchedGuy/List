@@ -10,7 +10,7 @@ export const DEFAULTS = {
   fov: 80, quality: matchMedia('(pointer: coarse)').matches ? 0.7 : 1, shadows: true, viewDist: 760, clouds: true,
   volume: 0.6, fullscreen: true, showFps: false, minimapZoom: 1, damageNumbers: true, autoSprint: false,
   prefSlots: {},
-  musicUrl: '', musicVol: 0.5, musicAuto: true,                      // bevorzugte Slots je Item-Kategorie (0 = egal)
+  musicUrl: '', musicVol: 0.5, musicAuto: true, noDupes: false,                      // bevorzugte Slots je Item-Kategorie (0 = egal)
 };
 export const SLOT_CATS = [['ar', 'Sturmgewehre'], ['shotgun', 'Shotguns'], ['smg', 'Maschinenpistolen'], ['pistol', 'Pistolen'], ['sniper', 'Scharfschützengewehre'],
   ['rocket', 'Raketenwerfer'], ['heal', 'Heilung (Verband, Medikit)'], ['shield', 'Schildtränke'], ['throw', 'Granaten'], ['mobility', 'Mobilität (Startrampe, Enterhaken, Riss)']];
@@ -48,7 +48,7 @@ const TOGGLES = {
   mouse: [['invertY', 'Y-Achse invertieren'], ['touch', 'Touch-Steuerung anzeigen']],
   gfx: [['fullscreen', 'Vollbild beim Spielen (sperrt Strg+W)'], ['shadows', 'Schatten'], ['clouds', 'Wolken'], ['showFps', 'FPS anzeigen']],
   music: [['musicAuto', 'Musik beim Rundenstart automatisch abspielen']],
-  other: [['damageNumbers', 'Schadenszahlen'], ['autoSprint', 'Automatisch laufen = sprinten']],
+  other: [['noDupes', 'Keine doppelten Items aufheben (bessere Seltenheit tauscht automatisch)'], ['damageNumbers', 'Schadenszahlen'], ['autoSprint', 'Automatisch laufen = sprinten']],
 };
 let tab = 'keys', root, onClose;
 try { tab = localStorage.getItem('skyroyale.settab') || 'keys'; } catch (e) {}

@@ -56,9 +56,21 @@ export function openChest(chest, actor) {
   for (const it of items) spawnLoot(it, base, true, face);
 }
 
+// Einstellung "Keine doppelten Items": gleiches Item nur aufheben, wenn es seltener (besser) ist – dann wird getauscht
+const noDupes = a => a === G.player && G.settings.noDupes;
+function dupeSlot(a, it) { for (let s = 1; s <= 5; s++) if (a.inv[s] && a.inv[s].key === it.key) return s; return 0; }
+export function dupeBlocked(a, it) {
+  if (!noDupes(a) || it.ammo || !DEFS[it.key]) return false;
+  const s = dupeSlot(a, it); if (!s) return false;
+  const have = a.inv[s], d = DEFS[it.key];
+  if (d.type === 'gun') return (have.rarity || 0) >= (it.rarity || 0);
+  return !(have.count < d.stack);                       // Verbrauchsitems: nur auf den vorhandenen Stapel, nie ein zweiter Slot
+}
+
 // Kann der Akteur das aufnehmen?
 export function canTake(a, it) {
   if (it.ammo) return true;
+  if (dupeBlocked(a, it)) return false;
   const d = DEFS[it.key];
   if (d.type !== 'gun') for (let s = 1; s <= 5; s++) { const c = a.inv[s]; if (c && c.key === it.key && c.count < d.stack) return true; }
   for (let s = 1; s <= 5; s++) if (!a.inv[s]) return true;
@@ -69,6 +81,20 @@ export function canTake(a, it) {
 export function takeItem(a, it) {
   if (it.ammo) { a.ammo[it.ammo] += it.amount; return null; }
   const d = DEFS[it.key];
+  if (noDupes(a)) {
+    const s = dupeSlot(a, it);
+    if (s && dupeBlocked(a, it)) return false;
+    if (s && d.type === 'gun') {                         // schlechtere Variante gegen die bessere tauschen
+      const old = a.inv[s]; a.inv[s] = it;
+      if (a.slot === s) { a.reloadT = 0; a.channel = null; a.equipT = 0.22; setHeldModel(a); }
+      return old;
+    }
+    if (s) {                                             // nur auf den vorhandenen Stapel legen
+      const take = Math.min(d.stack - a.inv[s].count, it.count);
+      a.inv[s].count += take; it.count -= take;
+      return it.count > 0 ? it : null;
+    }
+  }
   if (d.type !== 'gun') {
     for (let s = 1; s <= 5; s++) {
       const cur = a.inv[s];
@@ -103,9 +129,9 @@ export function takeItem(a, it) {
 
 // true = Drop wurde (ganz oder teilweise) genommen
 export function pickup(a, drop) {
-  if (isClient()) { if (canTake(a, drop.item)) req.pick(drop); return false; }
+  if (isClient()) { if (canTake(a, drop.item)) req.pick(drop); else if (a === G.player && dupeBlocked(a, drop.item)) emit('toast', 'Hast du schon (gleich gut oder besser)'); return false; }
   const rest = takeItem(a, drop.item);
-  if (rest === false) { if (a === G.player) emit('toast', 'Inventar voll – wähle einen Slot zum Tauschen'); return false; }
+  if (rest === false) { if (a === G.player) emit('toast', dupeBlocked(a, drop.item) ? 'Hast du schon (gleich gut oder besser)' : 'Inventar voll – wähle einen Slot zum Tauschen'); return false; }
   removeLoot(drop);
   if (rest) spawnLoot(rest, a.pos.clone().add(new THREE.Vector3(0, 0.3, 0)), true);
   if (a === G.player) sfx(pickupSound(drop.item));
@@ -139,6 +165,7 @@ export function findInteract(a, lookDir) {
 export function interactLabel(obj) {
   if (obj.type === 'chest') return 'Truhe öffnen';
   if (obj.type === 'ammo') return 'Munitionskiste öffnen';
+  if (obj.item && dupeBlocked(G.player, obj.item)) return itemLabel(obj.item) + ' · schon im Inventar';
   return itemLabel(obj.item);
 }
 
