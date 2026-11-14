@@ -26,6 +26,7 @@ import { initHud, updateHud, message, banner } from './hud.js';
 import { promptKey } from './input.js';
 import { initInventory, updateInventory } from './inv.js';
 import { initEmoteWheel, updateEmoteWheel, playEmote, EMOTES } from './emotes.js';
+import { setMusicUrl, updateMusic, musicRoundStart, creditsHtml } from './music.js';
 import { raycast } from './physics.js';
 import { initAudio, stopLoops } from './audio.js';
 import { updateFoley } from './foley.js';
@@ -118,6 +119,7 @@ loadWorld('assets/maps/sky-royale.glb', p => { $('load-bar').style.width = (p * 
     initHud();
     initInventory();
     initEmoteWheel();
+    if (G.settings.musicUrl) setMusicUrl(G.settings.musicUrl);
     initTouch(); G.onTouchSetting = setTouch; setTouch(G.settings.touch);
     $('load-txt').textContent = 'Bereit';
     $('load-bar').style.width = '100%';
@@ -135,6 +137,8 @@ function keyHelp() {
 }
 keyHelp();
 $('btn-settings').onclick = () => openSettings(keyHelp);
+$('btn-credits').onclick = () => { $('credits-body').innerHTML = creditsHtml(); $('credits').classList.remove('hidden'); };
+$('credits-close').onclick = () => $('credits').classList.add('hidden');
 $('btn-psettings').onclick = () => openSettings(keyHelp);
 const playerName = () => { const n = $('name').value.trim().slice(0, 16) || 'Spieler'; try { localStorage.setItem('skyroyale.name', n); } catch (e) {} return n; };
 
@@ -264,6 +268,7 @@ function startWarmup() {
   order.forEach((a, i) => placeOnPad(a, i + 1));
   if (isHost()) sendStart();
   warmupLoot();
+  musicRoundStart();
 }
 
 // Alles für eine neue Runde zurücksetzen (ohne die Seite neu zu laden)
@@ -366,6 +371,7 @@ on('netStart', d => {
   }
   G.player.state = 'air';
   G.phase = d.ph || 'warmup'; G.phaseT = d.pt;
+  musicRoundStart();
   applySync(d.sync);
   showHud(); showTouch(true);
   if (d.spec) {
@@ -587,6 +593,7 @@ function update(dt) {
 
   updateInventory(dt);
   updateEmoteWheel(dt);
+  updateMusic();
   updatePlayer(dt);
   if (!client) updateBots(dt);
   updateBus(dt);

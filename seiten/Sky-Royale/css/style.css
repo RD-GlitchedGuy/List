@@ -316,3 +316,21 @@ body.touch .inv-close { display: inline-block; }
   background: #263142; border: 2px solid #374458; color: #dfe4ea; cursor: pointer; }
 .ew-item.sel { border-color: #e6c14d; color: #fff; background: #324057; }
 body.touch #emote-wheel { pointer-events: auto; }
+
+/* ---------- Musik & Credits ---------- */
+#music-dock { position: fixed; left: -9999px; top: 0; width: 300px; height: 120px; overflow: hidden; }
+#music-dock iframe { width: 300px; height: 120px; border: 0; }
+#music-now { position: absolute; left: 22px; bottom: 82px; max-width: 340px; padding: 4px 8px; background: rgba(18, 24, 33, .6); font-size: 12px; color: #d9dee4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#music-now i { font-style: normal; color: #e6c14d; margin-right: 6px; }
+#music-now small { margin-left: 8px; color: #ff8a3d; font-weight: 700; }
+body.ended #music-now { display: none; }
+#music-pause { margin-top: 10px; font-size: 12px; color: #aeb7c2; line-height: 1.4; }
+#music-pause a, .cred a, #credits .dim a { color: #e6c14d; text-decoration: none; }
+#btn-credits { position: absolute; left: 20px; bottom: 20px; width: auto; padding: 8px 18px; margin: 0; }
+#credits { z-index: 40; }
+#credits h3 { font: italic 800 18px var(--cond); text-transform: uppercase; margin: 14px 0 4px; color: #e6c14d; }
+#credits .dim, .cred .dim { color: #8f9aa6; font-size: 12px; }
+.cred { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.opt input[type=text] { flex: 1; padding: 6px 8px; background: #1b2230; color: #eef0f2; border: 1px solid #3a4658; font: inherit; user-select: text; }
+.opt button.small { width: auto; margin: 0; padding: 6px 12px; font-size: 13px; }

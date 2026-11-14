@@ -31,6 +31,8 @@ export const ACTIONS = [
   ['emote', 'Emote (Tanzen)', 'Sonstiges', 'KeyB', ''],
   ['scoreboard', 'Spielerliste', 'Sonstiges', 'Tab', ''],
   ['inventory', 'Inventar (halten)', 'Sonstiges', 'AltLeft', 'KeyI'],
+  ['music', 'Musik Play/Pause', 'Sonstiges', 'KeyN', ''],
+  ['musicNext', 'Nächster Song', 'Sonstiges', 'KeyJ', ''],
 ];
 const STORE = 'skyroyale.binds.v1';
 export const binds = {};
@@ -122,6 +124,7 @@ export function initInput(canvas, onLockChange) {
     if (capture) { e.preventDefault(); captured(e.code === 'Escape' ? null : e.code); return; }
     // Mit Tastatursperre kommt Esc im Spiel an -> selbst Maus freigeben (Pause-Menü)
     if (e.code === 'Escape' && locked) { document.exitPointerLock(); return; }
+    if (!locked && e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;   // Tippen in Textfeldern löst keine Spieltasten aus
     if (locked && (e.ctrlKey || e.metaKey)) e.preventDefault();
     if (locked && (e.code === 'Tab' || e.code === 'Space' || e.ctrlKey || /^F\d+$/.test(e.code) || e.code === 'AltLeft' || e.code === 'AltRight')) e.preventDefault();
     if (!keys[e.code]) pressed.add(e.code);
