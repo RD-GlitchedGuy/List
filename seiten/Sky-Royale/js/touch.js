@@ -34,13 +34,38 @@ export function initTouch() {
   document.getElementById('bigmap-wrap').addEventListener('touchstart', e => { e.preventDefault(); virtHit.add('map'); }, { passive: false });
 }
 
+// Kleine Bildschirme: liegt die Minimap über Touch-Tasten, wird sie ausgeblendet (Karte gibt es weiter über die Karten-Taste)
+let mmT = 0;
+export function checkMinimap() {
+  const box = document.getElementById('mapbox');
+  if (!box || !root) return;
+  let hide = false;
+  if (active && !root.classList.contains('hidden')) {
+    const was = document.body.classList.contains('mm-off');
+    if (was) document.body.classList.remove('mm-off');                              // an der normalen Position messen (ohne Neuzeichnen)
+    const b = box.getBoundingClientRect();
+    if (was) document.body.classList.add('mm-off');
+    const mm = { l: b.left, r: b.right, t: b.top, btm: b.top + b.width };            // Minimap ist quadratisch, auch wenn sie gerade ausgeblendet ist
+    for (const el of root.querySelectorAll('.t-btn')) {
+      const r = el.getBoundingClientRect();
+      if (!r.width) continue;
+      if (r.left < mm.r && r.right > mm.l && r.top < mm.btm && r.bottom > mm.t) { hide = true; break; }
+    }
+  }
+  document.body.classList.toggle('mm-off', hide);
+}
+addEventListener('resize', () => { clearTimeout(mmT); mmT = setTimeout(checkMinimap, 150); });
+addEventListener('orientationchange', () => setTimeout(checkMinimap, 400));
+setInterval(checkMinimap, 600);
+
 export function setTouch(on) {
   active = !!on;
   setTouchMode(active);
   document.body.classList.toggle('touch', active);
   if (root) root.classList.toggle('hidden', !active || !G.player);
+  checkMinimap();
 }
-export function showTouch(v) { if (root) root.classList.toggle('hidden', !active || !v); }
+export function showTouch(v) { if (root) root.classList.toggle('hidden', !active || !v); checkMinimap(); }
 
 function start(e) {
   e.preventDefault();

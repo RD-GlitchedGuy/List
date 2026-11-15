@@ -9,7 +9,7 @@ import { setHeldModel } from './models.js';
 import { remoteShots, visualShots, remoteMelee, remoteThrow, visualThrow, addPad, breakObject } from './combat.js';
 import { wobbleObject, destroyObject } from './world.js';
 import { startBusWith, thankDriver as thankDriverRemote } from './bus.js';
-import { enterCar, exitCar, placeCar, freeSeat, setSeat, clearSeat } from './cars.js';
+import { enterCar, exitCar, placeCar, freeSeat, setSeat, clearSeat, seatActor } from './cars.js';
 import { matesOf } from './actors.js';
 import { createItem } from './items.js';
 import { explosion, shockRing } from './effects.js';
@@ -29,8 +29,8 @@ const byId = id => G.actors.find(a => a.id === id);
 // ---------------- Lobby ----------------
 // Öffentliche Lobbys: feste Peer-ID pro Modus. Wer die ID zuerst belegt, ist Host – alle anderen verbinden sich dorthin.
 const NETVER = 12, MAXC = 11;
-const pubId = mode => `skyroyale-rdg-v${NETVER}-${mode}`;
-function newPeer(id) {
+const pubId = mode => `skyroyale-rdg-v${NETVER}-${mode}${NET.room ? '-r' + NET.room.toLowerCase() : ''}`;   // room: private Runde einer Party
+export function newPeer(id) {
   if (!window.Peer) throw new Error('PeerJS konnte nicht geladen werden');
   const cfg = Object.assign({ debug: 1 }, window.PEER_CONFIG || {});   // PEER_CONFIG: optional eigener PeerJS-Server
   return id ? new window.Peer(id, cfg) : new window.Peer(cfg);
@@ -47,6 +47,7 @@ function setupHost(peer, onChange) {
         if (d.v !== NETVER) { conn.send({ t: 'full', why: 'Andere Spielversion – bitte Seite neu laden (Strg+F5)' }); setTimeout(() => conn.close(), 300); return; }
         if (NET.conns.length >= MAXC) { conn.send({ t: 'full', why: 'Lobby ist voll' }); setTimeout(() => conn.close(), 300); return; }
         entry.name = String(d.name || 'Spieler').slice(0, 16);
+        entry.pt = String(d.pt || '').slice(0, 8);
         entry.look = (d.look | 0) >= SKIN_BASE && (d.look | 0) < SKIN_BASE + SKINS.length ? d.look | 0 : 0;
         NET.conns.push(entry);
         if (G.player && G.phase !== 'menu') emit('lateJoin', entry);     // Runde läuft schon: Wartebereich oder Zuschauer
@@ -86,15 +87,15 @@ function connectTo(id, name, onChange) {
   peer.on('error', e => { if (NET.peer === peer) onChange('Verbindungsfehler: ' + (e.type === 'peer-unavailable' ? 'Lobby nicht gefunden' : e.type), e.type); });
   peer.on('open', () => {
     const conn = NET.host = peer.connect(id, { reliable: true, serialization: 'json' });
-    conn.on('open', () => conn.send({ t: 'hello', name, v: NETVER, look: skinLook(mySkin(), 0) }));
+    conn.on('open', () => conn.send({ t: 'hello', name, v: NETVER, look: skinLook(mySkin(), 0), pt: NET.pt || '' }));
     conn.on('data', d => { if (NET.peer === peer) clientHandle(d, onChange); });
     conn.on('close', () => { if (NET.peer === peer) emit('netLost'); });
   });
 }
 
 // Öffentliche Warteschlange: Host werden oder beitreten
-export function queuePublic(mode, name, onChange) {
-  NET.public = mode; NET.mode = mode; NET.name = name;
+export function queuePublic(mode, name, onChange, room = '', pt = '') {
+  NET.public = mode; NET.mode = mode; NET.name = name; NET.room = room; NET.pt = pt;
   let peer;
   try { peer = NET.peer = newPeer(pubId(mode)); } catch (e) { onChange(e.message, 'fatal'); return; }
   peer.on('open', () => {
@@ -128,7 +129,7 @@ export function toHost(msg) { if (NET.host && NET.host.open) NET.host.send(msg);
 export function createRemoteActors() {
   for (const c of NET.conns) {
     const a = createActor(c.name, false, c.look || G.actors.length);
-    a.isRemote = true; a.conn = c.conn; c.actor = a;
+    a.pt = c.pt; a.isRemote = true; a.conn = c.conn; c.actor = a;
   }
 }
 const actorInfo = a => ({ id: a.id, name: a.name, look: a.look, bot: a.isBot, p: v3(a.pos), team: a.team, w: a.wait ? 1 : 0, al: a.alive ? 1 : 0 });
@@ -172,7 +173,7 @@ function hostHandle(entry, d) {
       setHeld(a, d.h);
       if (d.car) {
         const car = G.cars[d.car.id];
-        if (car && car.driver === a) applyCar(car, d.car.p, d.car.y, d.car.pi, d.car.ro, d.car.sp, true);
+        if (car && car.driver === a) applyCar(car, d.car.p, d.car.y, d.car.pi, d.car.ro, d.car.sp, false);
       }
       break;
     }
@@ -422,16 +423,23 @@ export function netUpdate(dt) {
   for (const a of G.actors) {
     if (!a.netPos || a === G.player || (isHost() && !a.isRemote)) continue;
     if (!a.alive) continue;
-    if (a.pos.distanceToSquared(a.netPos) > 100) a.pos.copy(a.netPos); else a.pos.lerp(a.netPos, k);
+    if (!a.car) { if (a.pos.distanceToSquared(a.netPos) > 100) a.pos.copy(a.netPos); else a.pos.lerp(a.netPos, k); }   // im Auto: Sitzplatz statt Netzposition
     if (Number.isFinite(a.netYaw)) a.yaw += wrap(a.netYaw - a.yaw) * k;
     if (Number.isFinite(a.netPitch)) a.pitch += (a.netPitch - a.pitch) * k;
     if (!Number.isFinite(a.yaw)) a.yaw = 0;
     if (!Number.isFinite(a.pitch)) a.pitch = 0;
   }
-  if (isClient()) for (const c of G.cars) {
+  for (const c of G.cars) {
     if (!c.netPos || c.driver === G.player) continue;
+    if (isHost() && !(c.driver && c.driver.isRemote)) continue;      // Host: nur Autos mit fremdem Fahrer nachziehen
     if (c.pos.distanceToSquared(c.netPos) > 64) c.pos.copy(c.netPos); else c.pos.lerp(c.netPos, k);
     if (Number.isFinite(c.netYaw)) c.yaw += wrap(c.netYaw - c.yaw) * k; placeCar(c);
+  }
+  // Alle Insassen fest auf ihren Sitz setzen, nachdem die Autos bewegt wurden (eigenes Steuer ausgenommen)
+  for (const a of G.actors) {
+    if (!a.alive || !a.car || (a === G.player && a.seat === 0)) continue;
+    seatActor(a);
+    a.model.position.copy(a.pos); a.model.rotation.y = a.lean ? a.yaw : a.car.yaw;
   }
 
   if (isHost()) {

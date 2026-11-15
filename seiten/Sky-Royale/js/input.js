@@ -125,6 +125,8 @@ export function initInput(canvas, onLockChange) {
     // Mit Tastatursperre kommt Esc im Spiel an -> selbst Maus freigeben (Pause-Menü)
     if (e.code === 'Escape' && locked) { document.exitPointerLock(); return; }
     if (!locked && e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;   // Tippen in Textfeldern löst keine Spieltasten aus
+    const zoom = (e.ctrlKey || e.metaKey) && (['+', '-', '=', '0', '_'].includes(e.key) || /^(Equal|Minus|Digit0|Numpad0|NumpadAdd|NumpadSubtract|BracketRight|Slash)$/.test(e.code));
+    if (zoom) return;                                  // Strg + Plus/Minus/0: Browser-Zoom bleibt erlaubt
     if (locked && (e.ctrlKey || e.metaKey)) e.preventDefault();
     if (locked && (e.code === 'Tab' || e.code === 'Space' || e.ctrlKey || /^F\d+$/.test(e.code) || e.code === 'AltLeft' || e.code === 'AltRight')) e.preventDefault();
     if (!keys[e.code]) pressed.add(e.code);
