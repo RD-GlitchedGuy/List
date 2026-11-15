@@ -28,6 +28,7 @@ import { initInventory, updateInventory } from './inv.js';
 import { initEmoteWheel, updateEmoteWheel, playEmote, EMOTES } from './emotes.js';
 import { setMusicUrl, updateMusic, musicRoundStart, creditsHtml } from './music.js';
 import { raycast } from './physics.js';
+import { SKINS, mySkin, setMySkin, skinLook, preloadSkins } from './skins.js';
 import { initAudio, stopLoops } from './audio.js';
 import { updateFoley } from './foley.js';
 import { NET, isClient, isHost, isMP, hostLobby, joinLobby, lobbyNames, createRemoteActors, sendStart, sendStartTo, netUpdate, net, req,
@@ -137,6 +138,15 @@ function keyHelp() {
 }
 keyHelp();
 $('btn-settings').onclick = () => openSettings(keyHelp);
+function skinLabel() { $('skin-name').textContent = SKINS[mySkin()].name; }
+function renderSkins() {
+  const cur = mySkin();
+  $('skin-grid').innerHTML = SKINS.map((s, i) => `<div class="skin-card${i === cur ? ' sel' : ''}" data-i="${i}"><div class="pic" ${i ? `style="background-image:url(assets/skins/${s.id}.jpg)"` : ''}>${i ? '' : 'Zufällige Farben'}</div><div class="nm">${s.name}</div><div class="ds">${s.desc}</div></div>`).join('');
+  for (const el of $('skin-grid').querySelectorAll('.skin-card')) el.onclick = () => { setMySkin(+el.dataset.i); renderSkins(); skinLabel(); sfx('click'); };
+}
+$('btn-skins').onclick = () => { renderSkins(); $('skins').classList.remove('hidden'); };
+$('skins-close').onclick = () => $('skins').classList.add('hidden');
+skinLabel(); preloadSkins();
 $('btn-credits').onclick = () => { $('credits-body').innerHTML = creditsHtml(); $('credits').classList.remove('hidden'); };
 $('credits-close').onclick = () => $('credits').classList.add('hidden');
 $('btn-psettings').onclick = () => openSettings(keyHelp);
@@ -259,7 +269,7 @@ function startWarmup() {
   if (isMP() && NET.mode) G.mode = NET.mode;
   G.phase = 'warmup'; G.phaseT = WARMUP;
   showHud(); setTimeout(afterStart, 0);
-  G.player = createActor(isMP() ? NET.name : 'Du', false, 0);
+  G.player = createActor(isMP() ? NET.name : 'Du', false, skinLook(mySkin(), 0));
   setupPlayer(G.player);
   if (isHost()) createRemoteActors();
   createBots(Math.max(0, total() - G.actors.length));
@@ -336,7 +346,7 @@ function requeueActor(a) {
 
 // Host: Spieler kommt dazu, während schon gespielt wird
 on('lateJoin', entry => {
-  const a = createActor(entry.name, false, G.actors.length);
+  const a = createActor(entry.name, false, entry.look || G.actors.length);
   a.isRemote = true; a.conn = entry.conn; entry.actor = a;
   if (G.phase === 'warmup') {
     placeOnPad(a, (Math.random() * G.spawnPoints.length) | 0);

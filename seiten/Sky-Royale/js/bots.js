@@ -1,4 +1,5 @@
 // Bot-KI: Absprung, Looten, Kämpfen, vor dem Sturm fliehen
+import { randomBotLook } from './skins.js';
 import * as THREE from 'three';
 import { G, rand, pick } from './state.js';
 import { DEFS, AMMO } from './items.js';
@@ -19,7 +20,7 @@ const PREF_DIST = { shotgun: 5, smg: 11, pistol: 14, ar: 26, sniper: 70, rocket:
 export function createBots(n) {
   const names = NAMES.slice().sort(() => Math.random() - 0.5);
   for (let i = 0; i < n; i++) {
-    const a = createActor(names[i % names.length], true, i + 1);
+    const a = createActor(names[i % names.length], true, randomBotLook(i + 1));
     const ai = {
       skill: rand(0.3, 0.85), think: Math.random() * 0.4, target: null, targetSeen: 0, reaction: 0,
       goal: null, goalObj: null, strafe: 1, strafeT: 0, stuckT: 0, lastPos: new THREE.Vector3(), detourT: 0, detour: 1,

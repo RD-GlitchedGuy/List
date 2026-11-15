@@ -98,7 +98,7 @@ const SCHEMES = [ // Haut, Oberteil, Hose, Haare, Schuhe
   ['#e8bfa0', '#2f8a8a', '#463c33', '#7a3a2a', '#1e1e1e'], ['#b98266', '#7d7d7d', '#24272b', '#3a2a1a', '#8a3a2a'],
 ];
 export function makeCharacter(idx) {
-  const [skin, shirt, pants, hair, shoe] = SCHEMES[idx % SCHEMES.length];
+  const [skin, shirt, pants, hair, shoe] = SCHEMES[(idx % 100) % SCHEMES.length];
   const root = new THREE.Group();
   const J = {};
   J.pelvis = grp(root, 0, 0.97, 0);
@@ -140,6 +140,7 @@ export function makeCharacter(idx) {
     J['hand' + k] = el;
   }
   J.gunPivot = grp(J.spine, 0.1, 0.36, 0);
+  root.userData.body = []; root.traverse(o => { if (o.isMesh) root.userData.body.push(o); });
   J.glider = makeGlider(shirt, hair);
   J.glider.position.set(0, 2.35, 0.05); J.glider.visible = false; root.add(J.glider);
   root.userData.J = J;

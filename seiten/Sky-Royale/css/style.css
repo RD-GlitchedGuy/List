@@ -353,3 +353,15 @@ body.touch #emote-wheel { pointer-events: auto; }
 #music-toast span { font-size: 13px; color: #c9d0d8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #music-toast .mt-sc { align-self: flex-end; margin-left: 4px; font: 700 10px "Segoe UI", sans-serif; color: #ff8a3d; text-transform: uppercase; flex: none; }
 body:has(#music-dock.on) #music-toast { bottom: 330px; }
+
+/* Skin-Auswahl */
+#skins { z-index: 40; }
+#btn-skins b { color: #e6c14d; font-weight: 800; }
+#skin-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+.skin-card { background: #26303d; border: 2px solid #3a4658; border-radius: 3px; padding: 0 0 8px; cursor: pointer; text-align: center; }
+.skin-card:hover { border-color: #6a7a90; }
+.skin-card.sel { border-color: #e6c14d; }
+.skin-card .pic { height: 210px; background: #2a3442 center / cover no-repeat; display: flex; align-items: center; justify-content: center; color: #8f9aa6; font: italic 700 15px var(--cond); text-transform: uppercase; }
+.skin-card .nm { font: italic 800 18px var(--cond); text-transform: uppercase; color: #f4f1e8; margin-top: 7px; }
+.skin-card .ds { font-size: 12px; color: #8f9aa6; }
+@media (max-width: 800px) { #skin-grid { grid-template-columns: repeat(2, 1fr); } .skin-card .pic { height: 160px; } }

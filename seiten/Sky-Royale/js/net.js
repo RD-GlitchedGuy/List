@@ -1,5 +1,6 @@
 // Multiplayer über PeerJS – der Host rechnet die Runde (Bots, Sturm, Schaden, Loot),
 // Clients steuern ihre eigene Figur und schicken Eingaben/Positionen.
+import { mySkin, skinLook, SKIN_BASE, SKINS } from './skins.js';
 import * as THREE from 'three';
 import { G, emit } from './state.js';
 import { createActor, eliminate, damage, feedText, removeActor, setPlace } from './actors.js';
@@ -46,6 +47,7 @@ function setupHost(peer, onChange) {
         if (d.v !== NETVER) { conn.send({ t: 'full', why: 'Andere Spielversion – bitte Seite neu laden (Strg+F5)' }); setTimeout(() => conn.close(), 300); return; }
         if (NET.conns.length >= MAXC) { conn.send({ t: 'full', why: 'Lobby ist voll' }); setTimeout(() => conn.close(), 300); return; }
         entry.name = String(d.name || 'Spieler').slice(0, 16);
+        entry.look = (d.look | 0) >= SKIN_BASE && (d.look | 0) < SKIN_BASE + SKINS.length ? d.look | 0 : 0;
         NET.conns.push(entry);
         if (G.player && G.phase !== 'menu') emit('lateJoin', entry);     // Runde läuft schon: Wartebereich oder Zuschauer
         else { lobbyBroadcast(); onChange(); }
@@ -84,7 +86,7 @@ function connectTo(id, name, onChange) {
   peer.on('error', e => { if (NET.peer === peer) onChange('Verbindungsfehler: ' + (e.type === 'peer-unavailable' ? 'Lobby nicht gefunden' : e.type), e.type); });
   peer.on('open', () => {
     const conn = NET.host = peer.connect(id, { reliable: true, serialization: 'json' });
-    conn.on('open', () => conn.send({ t: 'hello', name, v: NETVER }));
+    conn.on('open', () => conn.send({ t: 'hello', name, v: NETVER, look: skinLook(mySkin(), 0) }));
     conn.on('data', d => { if (NET.peer === peer) clientHandle(d, onChange); });
     conn.on('close', () => { if (NET.peer === peer) emit('netLost'); });
   });
@@ -125,7 +127,7 @@ export function toHost(msg) { if (NET.host && NET.host.open) NET.host.send(msg);
 // Host: Remote-Akteure anlegen (vor den Bots)
 export function createRemoteActors() {
   for (const c of NET.conns) {
-    const a = createActor(c.name, false, G.actors.length);
+    const a = createActor(c.name, false, c.look || G.actors.length);
     a.isRemote = true; a.conn = c.conn; c.actor = a;
   }
 }

@@ -182,5 +182,6 @@ export function creditsHtml() {
     <ul class="cred"><li>The Free Firearm Sound Library, geschnitten im Projekt <a href="https://github.com/mrellcrane/smokeem" target="_blank" rel="noopener">smokeem</a></li>
     <li><a href="https://kenney.nl" target="_blank" rel="noopener">Kenney</a> (Interface, Impact, RPG Audio)</li>
     <li>Still North Media, Versilian Community Sample Library, Freesound-Aufnahmen unter CC0 – über das Projekt <a href="https://github.com/hoffspot/conquest" target="_blank" rel="noopener">conquest</a></li></ul>
+    <h3>Skins</h3><ul class="cred"><li>Nadelstreif, Wolkenstahl, Tropenkopf: eigene Entwürfe auf Basis des Körpermodells und der Gewichtungen von <a href="https://github.com/makehumancommunity/makehuman" target="_blank" rel="noopener">MakeHuman</a> (CC0)</li></ul>
     <h3>Technik</h3><ul class="cred"><li><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a>, <a href="https://github.com/gkjohnson/three-mesh-bvh" target="_blank" rel="noopener">three-mesh-bvh</a>, <a href="https://peerjs.com" target="_blank" rel="noopener">PeerJS</a></li></ul>`;
 }

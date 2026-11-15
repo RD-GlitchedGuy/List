@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { G, emit, teamSize } from './state.js';
 import { createItem, DEFS, AMMO } from './items.js';
 import { makeCharacter, setHeldModel } from './models.js';
+import { skinCharacter } from './skins.js';
 import { spawnLoot } from './loot.js';
 import { sfx } from './audio.js';
 import { isClient, net, req } from './net.js';
@@ -22,6 +23,7 @@ export function createActor(name, isBot, look, id) {
     channel: null, fallImmune: false, grapple: null, padCd: 0, lastHitBy: null, slideT: 0, diving: false, car: null,
     model: makeCharacter(look), heldModel: null,
   };
+  skinCharacter(a.model, look);
   resetLoadout(a);
   G.scene.add(a.model);
   G.actors.push(a);
