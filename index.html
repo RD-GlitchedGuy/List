@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyGames – Error 404</title>
+    <!-- Tailwind CSS für sauberes, responsives Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #000000;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="min-h-screen w-full flex items-center justify-center p-6 sm:p-10 bg-black text-white select-none overflow-x-hidden">
+
+    <!-- Hauptcontainer: Links der SkyGames-Text mit Countdown & Skip-Button, rechts große traurige Sonne & Error 404 -->
+    <main class="w-full max-w-4xl flex flex-col-reverse sm:flex-row items-center justify-between gap-10 sm:gap-14">
+
+        <!-- Linker Bereich: SkyGames-Meldung, Countdown und Skip-Button -->
+        <div class="flex flex-col items-center sm:items-start text-center sm:text-left space-y-5 max-w-lg">
+            <h1 class="text-2xl sm:text-4xl font-bold tracking-tight text-white leading-snug">
+                Die SkyGames Website ist leider nicht verfügbar
+            </h1>
+
+            <p class="text-lg sm:text-xl text-neutral-300 font-normal">
+                Wir senden Sie zu der Main Website in <span id="countdown" class="font-bold text-white tabular-nums">10</span>
+            </p>
+
+            <!-- Skip-Button für sofortige Weiterleitung -->
+            <div class="pt-2">
+                <button
+                    id="skip-button"
+                    type="button"
+                    class="px-7 py-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 active:scale-95 text-white font-semibold text-base border border-neutral-700 hover:border-neutral-500 transition-all cursor-pointer shadow-lg"
+                >
+                    Skip
+                </button>
+            </div>
+        </div>
+
+        <!-- Rechter Bereich: Große SkyGames-Sonne (SVG) mit traurigem Gesicht, Flugzeug-Animation und rotem Error 404 -->
+        <div class="flex flex-col items-center justify-center shrink-0">
+            <!-- Vergrößerter SVG-Container für die SkyGames-Sonne und das einfliegende Flugzeug -->
+            <svg 
+                class="w-52 h-52 sm:w-64 sm:h-64 mb-3 overflow-visible" 
+                viewBox="0 0 240 240" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+            >
+                <defs>
+                    <!-- Flugzeug-Silhouette aus LadeAnimation.html -->
+                    <g id="sg-pshape">
+                        <path d="M0,-110 C14,-110 16,-90 16,-70 L14,95 L0,115 L-14,95 L-16,-70 C-16,-90 -14,-110 0,-110Z"/>
+                        <path d="M-15,-15 L-112,38 L-112,54 L-15,28Z M15,-15 L112,38 L112,54 L15,28Z"/>
+                        <path d="M-12,82 L-50,106 L-50,116 L-12,102Z M12,82 L50,106 L50,116 L12,102Z"/>
+                    </g>
+                </defs>
+
+                <!-- Große SkyGames-Sonne (#FFB000 / #F59E00) -->
+                <g id="sg-sun" transform="translate(120,120) scale(1.22)">
+                    <!-- 16 abwechselnd lange und kurze Sonnenstrahlen -->
+                    <g id="sg-rays" stroke="#F59E00" stroke-width="6" stroke-linecap="round"></g>
+                    <!-- Sonnenkörper -->
+                    <circle r="42" fill="#FFB000" stroke="#F59E00" stroke-width="6"/>
+                    <!-- Trauriges Gesicht (#5C3600) -->
+                    <circle cx="-13" cy="-6" r="4" fill="#5C3600"/>
+                    <circle cx="13" cy="-6" r="4" fill="#5C3600"/>
+                    <path d="M -14 16 Q 0 4 14 16" stroke="#5C3600" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+                </g>
+            </svg>
+
+            <!-- Error 404 direkt unter dem Sonnen-Logo in Rot -->
+            <span class="text-2xl sm:text-3xl font-bold text-[#ef4444] tracking-wide">
+                Error 404
+            </span>
+        </div>
+
+    </main>
+
+    <!-- Vollbild-Overlay für das sehr große Flugzeug, das ab Sekunde 3 komplett über den Screen hinausfliegt -->
+    <svg
+        id="sg-plane-overlay"
+        class="fixed inset-0 w-screen h-screen pointer-events-none z-50 overflow-visible"
+        viewBox="0 0 1000 1000"
+        preserveAspectRatio="xMidYMid slice"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+    >
+        <g id="sg-plane" opacity="0" transform="translate(1350,1350) rotate(-45) scale(3.4)">
+            <g fill="#fff" stroke="#8A8A8A" stroke-width="7">
+                <rect x="-62" y="-2" width="14" height="26" rx="7"/>
+                <rect x="-92" y="14" width="14" height="26" rx="7"/>
+                <rect x="48" y="-2" width="14" height="26" rx="7"/>
+                <rect x="78" y="14" width="14" height="26" rx="7"/>
+            </g>
+            <use href="#sg-pshape" fill="#fff" stroke="#8A8A8A" stroke-width="7" stroke-linejoin="round"/>
+        </g>
+    </svg>
+
+    <script>
+        /**
+         * KONFIGURATION
+         * Ziel-URL für die automatische und manuelle Weiterleitung anpassen:
+         */
+        const targetUrl = 'https://tewe444.github.io/List/';
+        let secondsLeft = 10;
+
+        let countdownElement = null;
+        let skipButton = null;
+        let raysGroup = null;
+        let planeElement = null;
+
+        let timer = null;
+        let planeAnimationStarted = false;
+
+        /**
+         * Erzeugt die 16 abwechselnd langen und kurzen Sonnenstrahlen
+         */
+        function buildSunRays() {
+            if (!raysGroup) return;
+            const svgNs = 'http://www.w3.org/2000/svg';
+            for (let k = 0; k < 16; k++) {
+                const angle = (k * Math.PI) / 8;
+                const isMajor = k % 2 === 0;
+                const r1 = isMajor ? 54 : 56;
+                const r2 = isMajor ? 76 : 68;
+                const line = document.createElementNS(svgNs, 'line');
+                line.setAttribute('x1', (Math.cos(angle) * r1).toFixed(1));
+                line.setAttribute('y1', (Math.sin(angle) * r1).toFixed(1));
+                line.setAttribute('x2', (Math.cos(angle) * r2).toFixed(1));
+                line.setAttribute('y2', (Math.sin(angle) * r2).toFixed(1));
+                raysGroup.appendChild(line);
+            }
+        }
+
+        /**
+         * Kubisches Ease-Out für die sanfte Einflug-Bewegung
+         */
+        function easeOutCubic(t) {
+            return 1 - Math.pow(1 - t, 3);
+        }
+
+        /**
+         * Startet bei Countdown = 3 den diagonalen Einflug des Flugzeugs von unten rechts nach oben links
+         */
+        function triggerPlaneFlyIn() {
+            if (planeAnimationStarted || !planeElement) return;
+            planeAnimationStarted = true;
+
+            const duration = 1800;
+            let startTime = null;
+
+            planeElement.setAttribute('opacity', '1');
+
+            function animatePlane(now) {
+                if (startTime === null) startTime = now;
+                const elapsed = now - startTime;
+                const progress = easeOutCubic(Math.min(elapsed / duration, 1));
+
+                const currentX = 340 - 195 * progress;
+                const currentY = 340 - 195 * progress;
+
+                planeElement.setAttribute(
+                    'transform',
+                    `translate(${currentX.toFixed(1)},${currentY.toFixed(1)}) rotate(-45) scale(0.55)`
+                );
+
+                if (elapsed < duration) {
+                    requestAnimationFrame(animatePlane);
+                }
+            }
+
+            requestAnimationFrame(animatePlane);
+        }
+
+        /**
+         * Startet bei Countdown = 3 den diagonalen Überflug eines sehr großen Flugzeugs
+         * von außerhalb unten rechts bis komplett aus dem Bildschirm oben links und leitet danach weiter
+         */
+        function triggerPlaneFlyIn() {
+            if (planeAnimationStarted || !planeElement) return;
+            planeAnimationStarted = true;
+
+            // 3 Sekunden Flugdauer bis Countdown 0, damit das Flugzeug exakt zum Ende aus dem Screen fliegt
+            const duration = 3000;
+            let startTime = null;
+
+            planeElement.setAttribute('opacity', '1');
+
+            function animatePlane(now) {
+                if (startTime === null) startTime = now;
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Sehr großes Flugzeug fliegt diagonal komplett durch den gesamten Screen (1350 -> -450)
+                const currentX = 1350 - 1800 * progress;
+                const currentY = 1350 - 1800 * progress;
+
+                planeElement.setAttribute(
+                    'transform',
+                    `translate(${currentX.toFixed(1)},${currentY.toFixed(1)}) rotate(-45) scale(3.4)`
+                );
+
+                if (elapsed < duration) {
+                    requestAnimationFrame(animatePlane);
+                } else {
+                    redirectNow();
+                }
+            }
+
+            requestAnimationFrame(animatePlane);
+        }
+
+        /**
+         * Führt die Weiterleitung zur definierten Ziel-URL durch
+         */
+        function redirectNow() {
+            if (timer) {
+                clearInterval(timer);
+            }
+            try {
+                window.location.href = targetUrl;
+            } catch (error) {
+                console.error('Weiterleitung fehlgeschlagen:', error);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            countdownElement = document.getElementById('countdown');
+            skipButton = document.getElementById('skip-button');
+            raysGroup = document.getElementById('sg-rays');
+            planeElement = document.getElementById('sg-plane');
+
+            buildSunRays();
+
+            if (skipButton) {
+                skipButton.addEventListener('click', redirectNow);
+            }
+
+            timer = setInterval(() => {
+                secondsLeft -= 1;
+
+                // Flugzeug-Überflug auslösen, sobald der Countdown bei 3 ankommt
+                if (secondsLeft <= 3 && !planeAnimationStarted) {
+                    triggerPlaneFlyIn();
+                }
+
+                if (secondsLeft <= 0) {
+                    if (countdownElement) {
+                        countdownElement.textContent = '0';
+                    }
+                    if (!planeAnimationStarted) {
+                        redirectNow();
+                    }
+                } else {
+                    if (countdownElement) {
+                        countdownElement.textContent = String(secondsLeft);
+                    }
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
